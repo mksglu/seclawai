@@ -106,11 +106,6 @@ export async function doctor() {
       return;
     }
 
-    // Stop any other seclaw instances first to free ports
-    s.start("Stopping conflicting containers...");
-    await stopExistingSeclaw();
-    s.stop(`${FIX} Cleared conflicting containers`);
-
     for (const check of fixable) {
       s.start(`Fixing: ${check.name}...`);
       try {
@@ -262,13 +257,13 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
   try {
     const result = await execa(
       "docker",
-      ["compose", "logs", "cloudflared", "--no-log-prefix"],
+      ["compose", "logs", "cloudflared", "--no-log-prefix", "--tail", "50"],
       { cwd: projectDir, env: { ...process.env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) } }
     );
     const combined = result.stdout + "\n" + result.stderr;
-    const match = combined.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    const matches = [...combined.matchAll(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g)];
 
-    if (!match) {
+    if (matches.length === 0) {
       return {
         name: "Tunnel",
         ok: false,
@@ -283,7 +278,7 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
       };
     }
 
-    const tunnelUrl = match[0];
+    const tunnelUrl = matches[matches.length - 1][0];
 
     try {
       const res = await fetch(`${tunnelUrl}/health`, {
@@ -304,6 +299,13 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
         ok: false,
         message: `URL found (${pc.dim(tunnelUrl)}) but not reachable`,
         tunnelUrl,
+        fix: async () => {
+          await clearTunnelCache(projectDir);
+          const env = { ...process.env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) };
+          await execa("docker", ["compose", "restart", "cloudflared"], { cwd: projectDir, env });
+          const newUrl = await getTunnelUrl(projectDir, 20);
+          return newUrl ? `New tunnel: ${newUrl}` : "Restarted cloudflared — run doctor again";
+        },
       };
     }
   } catch {
@@ -360,15 +362,20 @@ async function checkTelegram(
     const wh = whData.result;
     const tunnelUrl = tunnelCheck.tunnelUrl || "";
 
+    // Shared fix: get fresh tunnel URL and set webhook
+    const webhookFix = async () => {
+      const freshUrl = await getTunnelUrl(projectDir, 5);
+      if (!freshUrl) return "No tunnel URL available — fix tunnel first";
+      const ok = await setTelegramWebhook(botToken, freshUrl);
+      return ok ? `Webhook set to ${freshUrl}` : "Could not set webhook";
+    };
+
     if (!wh.url) {
       return {
         name: `Telegram (${botName})`,
         ok: false,
         message: "Webhook not set",
-        fix: tunnelUrl ? async () => {
-          const ok = await setTelegramWebhook(botToken, tunnelUrl);
-          return ok ? "Webhook set" : "Could not set webhook";
-        } : undefined,
+        fix: webhookFix,
       };
     }
 
@@ -377,10 +384,7 @@ async function checkTelegram(
         name: `Telegram (${botName})`,
         ok: false,
         message: "Webhook points to old tunnel",
-        fix: async () => {
-          const ok = await setTelegramWebhook(botToken, tunnelUrl);
-          return ok ? "Webhook updated" : "Could not update webhook";
-        },
+        fix: webhookFix,
       };
     }
 
@@ -392,6 +396,13 @@ async function checkTelegram(
         name: `Telegram (${botName})`,
         ok: false,
         message: `Error ${age}m ago: ${wh.last_error_message}`,
+        fix: async () => {
+          // Get fresh tunnel URL (may have been renewed by tunnel fix)
+          const freshUrl = await getTunnelUrl(projectDir, 5);
+          if (!freshUrl) return "No tunnel URL available — fix tunnel first";
+          const ok = await setTelegramWebhook(botToken, freshUrl);
+          return ok ? `Webhook re-set to ${freshUrl}` : "Could not set webhook";
+        },
       };
     }
 
