@@ -110,19 +110,27 @@ async function findContainerByLabel(project: string): Promise<{ dir: string | nu
  * with agent service. Checks running containers first, then common paths.
  */
 export function findProjectDir(): string | null {
-  // 1. Check running containers for the working dir
-  for (const containerName of ["seclaw-agent-1"]) {
-    try {
-      const result = execaSync("docker", [
-        "inspect", containerName,
-        "--format", "{{index .Config.Labels \"com.docker.compose.project.working_dir\"}}",
-      ]);
-      const dir = result.stdout.trim();
-      if (dir && existsSync(resolve(dir, "docker-compose.yml"))) {
-        return dir;
-      }
-    } catch { /* container not running */ }
-  }
+  // 1. Check running containers for the working dir (any compose project with agent service)
+  try {
+    const result = execaSync("docker", [
+      "ps",
+      "--filter", "label=com.docker.compose.service=agent",
+      "--format", "{{.Names}}",
+    ]);
+    const names = result.stdout.trim().split("\n").filter(Boolean);
+    for (const name of names) {
+      try {
+        const inspect = execaSync("docker", [
+          "inspect", name,
+          "--format", "{{index .Config.Labels \"com.docker.compose.project.working_dir\"}}",
+        ]);
+        const dir = inspect.stdout.trim();
+        if (dir && existsSync(resolve(dir, "docker-compose.yml"))) {
+          return dir;
+        }
+      } catch { /* skip */ }
+    }
+  } catch { /* no containers */ }
 
   // 2. Static candidates
   const candidates = [

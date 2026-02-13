@@ -6,7 +6,7 @@
   "assets": {
     "directory": "./public"
   },
-  "vars": {
-    "API_URL": "https://api.seclawai.com"
+  "dev": {
+    "port": 8787
   }
 }

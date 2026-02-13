@@ -7,10 +7,10 @@ import pc from "picocolors";
 import { collectSetupAnswers } from "../prompts.js";
 import { scaffoldProject } from "../scaffold.js";
 import { getTunnelUrl, setTelegramWebhook } from "../tunnel.js";
-import { checkDocker, stopExistingSeclaw, findRunningSeclaw } from "../docker.js";
+import { checkDocker, stopExistingSeclaw, findRunningSeclaw, findProjectDir } from "../docker.js";
 
 export async function create(directory: string) {
-  const targetDir = resolve(process.cwd(), directory);
+  let targetDir = resolve(process.cwd(), directory);
 
   // --- Pre-flight: Docker check ---
   const docker = await checkDocker();
@@ -23,10 +23,16 @@ export async function create(directory: string) {
 
   // --- Running instance detected? ---
   const running = await findRunningSeclaw();
+  const existingDir = findProjectDir();
   const hasExisting = existsSync(resolve(targetDir, "docker-compose.yml"));
 
-  if (running || hasExisting) {
-    const location = running?.dir || (hasExisting ? targetDir : null);
+  if (running || existingDir || hasExisting) {
+    const location = existingDir || running?.dir || (hasExisting ? targetDir : null);
+
+    // Use the existing project directory if found (preserves templates, data, etc.)
+    if (location) {
+      targetDir = location;
+    }
 
     p.intro(`${pc.bgCyan(pc.black(" seclaw "))}`);
     p.log.warn(
@@ -45,7 +51,7 @@ export async function create(directory: string) {
   }
 
   // --- Setup wizard ---
-  const answers = await collectSetupAnswers();
+  const answers = await collectSetupAnswers(targetDir);
   const s = p.spinner();
 
   // 1. Stop old containers
@@ -61,7 +67,7 @@ export async function create(directory: string) {
   // 3. Copy template system prompt
   if (answers.template !== "blank") {
     s.start(`Copying template: ${answers.template}...`);
-    const templateSrc = getTemplatePath(answers.template);
+    const templateSrc = getTemplatePath(answers.template, targetDir);
     if (templateSrc && existsSync(templateSrc)) {
       await cp(templateSrc, resolve(targetDir, "templates", answers.template), {
         recursive: true,
@@ -197,7 +203,7 @@ async function startServices(
 }
 
 const PROVIDER_LABELS: Record<string, { model: string; cost: string }> = {
-  openrouter: { model: "Smart Routing (auto)", cost: "~$5-15/mo" },
+  openrouter: { model: "Gemini 3 Flash", cost: "~$3-10/mo" },
   anthropic:  { model: "Claude Sonnet 4.5", cost: "~$15-30/mo" },
   openai:     { model: "GPT-4o", cost: "~$10-25/mo" },
   gemini:     { model: "Gemini 2.5 Pro", cost: "~$7-20/mo" },
@@ -243,18 +249,30 @@ function showSuccess(
 
   if (provider === "openrouter") {
     p.log.info(
-      `${pc.bold("Smart Routing enabled:")} Simple messages use fast/cheap models,\n` +
-      `  complex tasks use powerful models. Saves up to 78% vs fixed model.`
+      `${pc.bold("Gemini 3 Flash:")} Fast, affordable, and great with tools.\n` +
+      `  Change model anytime in .env → LLM_MODEL=your/model`
     );
   }
 
   p.outro(`${pc.dim("Manage:")} npx seclaw status | stop | integrations`);
 }
 
-function getTemplatePath(template: string): string | null {
+function getTemplatePath(template: string, targetDir?: string): string | null {
+  // 1. Already installed in project (paid templates from `npx seclaw add`)
+  if (targetDir) {
+    const installed = resolve(targetDir, "templates", template);
+    if (existsSync(installed)) return installed;
+  }
+
+  // 2. Bundled free templates
   const bundled = resolve(import.meta.dirname, "templates", "free", template);
   if (existsSync(bundled)) return bundled;
 
+  // 3. Bundled paid templates
+  const bundledPaid = resolve(import.meta.dirname, "templates", "paid", template);
+  if (existsSync(bundledPaid)) return bundledPaid;
+
+  // 4. Local dev fallback
   const local = resolve(process.cwd(), "packages", "cli", "templates", "free", template);
   if (existsSync(local)) return local;
 

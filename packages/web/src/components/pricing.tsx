@@ -41,9 +41,9 @@ export function Pricing() {
               <p className="text-xs text-neutral-500">/month — Haiku only</p>
             </div>
             <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4 text-center">
-              <p className="text-2xl font-bold text-green-400">~$15-30</p>
+              <p className="text-2xl font-bold text-green-400">~$3-10</p>
               <p className="text-xs text-neutral-500">
-                /month — Smart routing
+                /month — Gemini 3 Flash (default)
               </p>
             </div>
             <div className="rounded-lg border border-neutral-800 p-4 text-center">

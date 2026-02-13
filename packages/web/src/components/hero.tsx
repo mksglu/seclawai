@@ -72,7 +72,7 @@ export function Hero() {
             { text: '', pause: 600 },
             { text: '', pause: 300, mt: true },
             { text: '  LLM Provider ', color: '#737373', typing: false, inline: [
-              { text: 'openrouter/auto', color: '#fff', typing: true, speed: 40 }
+              { text: 'google/gemini-3-flash-preview', color: '#fff', typing: true, speed: 40 }
             ]},
             { text: '  Telegram Token ', color: '#737373', typing: false, inline: [
               { text: '723***:AAF***', color: '#fff', typing: true, speed: 40 }

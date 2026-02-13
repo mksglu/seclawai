@@ -32,7 +32,7 @@ seclaw fixes both problems. Same autonomous agent capabilities — with Docker-l
 
 ## Quick Start
 
-**Prerequisites:** Docker Desktop, Node.js 20+, an LLM API key ([Anthropic](https://console.anthropic.com) / [OpenAI](https://platform.openai.com/api-keys) / [Google](https://aistudio.google.com/apikey) / [OpenRouter](https://openrouter.ai/keys)), a [Telegram bot token](https://t.me/BotFather).
+**Prerequisites:** Docker Desktop, Node.js 20+, an LLM API key ([OpenRouter](https://openrouter.ai/keys) recommended / [Anthropic](https://console.anthropic.com) / [OpenAI](https://platform.openai.com/api-keys) / [Google](https://aistudio.google.com/apikey)), a [Telegram bot token](https://t.me/BotFather).
 
 ```bash
 npx seclaw
@@ -230,9 +230,9 @@ Your only real cost is the LLM API. Everything else is free — Docker, Inngest,
 
 | Usage | Model | Monthly |
 |-------|-------|---------|
-| Light | Haiku 4.5 | ~$6/mo |
-| Normal | Smart routing (Haiku + Sonnet) | ~$15-30/mo |
-| Heavy | Opus 4.6 | ~$100+/mo |
+| Light | Gemini 3 Flash (default) | ~$3-6/mo |
+| Normal | Gemini 3 Flash | ~$5-15/mo |
+| Heavy | Claude Sonnet 4.5 / Opus 4.6 | ~$30-100+/mo |
 
 ---
 

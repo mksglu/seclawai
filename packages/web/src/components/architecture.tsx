@@ -15,10 +15,10 @@ export function Architecture() {
       highlight: true,
     },
     {
-      name: "Claude / GPT-4o / Gemini",
+      name: "Gemini 3 Flash",
       role: "LLM",
       description:
-        "Opus 4.6, Sonnet 4.5, Haiku 4.5 — or GPT-4o, Gemini, 100+ models via OpenRouter. Smart routing picks the right model per task. Complex reasoning? Opus. Quick reply? Haiku.",
+        "Default: Gemini 3 Flash via OpenRouter — fast, affordable, excellent tool use. Or switch to Claude, GPT-4o, Gemini Pro, and 100+ other models. One env variable change.",
       highlight: false,
     },
     {

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { resolve, join } from "node:path";
 import { homedir, platform } from "node:os";
 import { exec } from "node:child_process";
 import * as p from "@clack/prompts";
@@ -48,8 +48,8 @@ const PROVIDER_CONFIG: Record<
     keyUrl: "https://aistudio.google.com/apikey",
   },
   openrouter: {
-    label: "OpenRouter (100+ models)",
-    hint: "Claude, GPT, Llama, Mixtral and more",
+    label: "OpenRouter (Gemini 3 Flash)",
+    hint: "Gemini 3 Flash — fast, affordable, 100+ models available",
     envVar: "OPENROUTER_API_KEY",
     placeholder: "sk-or-...",
     prefix: "sk-or-",
@@ -61,7 +61,7 @@ export function getProviderConfig(provider: LLMProvider) {
   return PROVIDER_CONFIG[provider];
 }
 
-export async function collectSetupAnswers(): Promise<SetupAnswers> {
+export async function collectSetupAnswers(targetDir?: string): Promise<SetupAnswers> {
   p.intro(
     `${pc.bgCyan(pc.black(" seclaw "))} ${pc.dim("Secure autonomous AI agents in 60 seconds.")}`
   );
@@ -70,7 +70,7 @@ export async function collectSetupAnswers(): Promise<SetupAnswers> {
   const provider = await p.select({
     message: "Which LLM provider?",
     options: [
-      { value: "openrouter" as const, label: "OpenRouter", hint: "recommended — smart routing, ~$5-15/mo" },
+      { value: "openrouter" as const, label: "OpenRouter", hint: "recommended — Gemini 3 Flash, ~$3-10/mo" },
       { value: "anthropic" as const, label: "Anthropic (Claude)", hint: "~$15-30/mo" },
       { value: "openai" as const, label: "OpenAI (GPT-4o)", hint: "~$10-25/mo" },
       { value: "gemini" as const, label: "Google (Gemini)", hint: "~$7-20/mo" },
@@ -167,20 +167,35 @@ export async function collectSetupAnswers(): Promise<SetupAnswers> {
   }
 
   // --- Template ---
+  const templateOptions: { value: string; label: string; hint: string }[] = [
+    {
+      value: "productivity-agent",
+      label: "Productivity Agent (recommended)",
+      hint: "free — task management, Telegram chat, file tools",
+    },
+  ];
+
+  // Discover installed paid templates from existing project
+  if (targetDir) {
+    const installedTemplates = discoverInstalledTemplates(targetDir);
+    for (const t of installedTemplates) {
+      templateOptions.push({
+        value: t.id,
+        label: `${t.name} (installed)`,
+        hint: `${t.tier} — ${t.description.substring(0, 60)}`,
+      });
+    }
+  }
+
+  templateOptions.push({
+    value: "blank",
+    label: "Empty project",
+    hint: "just the infrastructure, no template",
+  });
+
   const template = await p.select({
     message: "Select a starter template",
-    options: [
-      {
-        value: "productivity-agent",
-        label: "Productivity Agent (recommended)",
-        hint: "free — task management, Telegram chat, file tools",
-      },
-      {
-        value: "blank",
-        label: "Empty project",
-        hint: "just the infrastructure, no template",
-      },
-    ],
+    options: templateOptions,
   });
   if (p.isCancel(template)) process.exit(0);
 
@@ -228,6 +243,44 @@ function openUrl(url: string): void {
       ? `start "${url}"`
       : `xdg-open "${url}"`;
   exec(cmd, () => {});
+}
+
+interface InstalledTemplate {
+  id: string;
+  name: string;
+  description: string;
+  tier: string;
+}
+
+/**
+ * Discover installed templates from the project's templates/ directory.
+ * Reads manifest.json from each template folder (skips productivity-agent which is always shown).
+ */
+function discoverInstalledTemplates(targetDir: string): InstalledTemplate[] {
+  const templates: InstalledTemplate[] = [];
+  const templatesDir = join(targetDir, "templates");
+
+  if (!existsSync(templatesDir)) return templates;
+
+  try {
+    const entries = readdirSync(templatesDir);
+    for (const entry of entries) {
+      if (entry === "productivity-agent") continue; // already in default options
+      const manifestPath = join(templatesDir, entry, "manifest.json");
+      if (!existsSync(manifestPath)) continue;
+      try {
+        const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+        templates.push({
+          id: manifest.id || entry,
+          name: manifest.name || entry,
+          description: manifest.description || "",
+          tier: manifest.tier || "paid",
+        });
+      } catch { /* invalid manifest */ }
+    }
+  } catch { /* can't read dir */ }
+
+  return templates;
 }
 
 /**
