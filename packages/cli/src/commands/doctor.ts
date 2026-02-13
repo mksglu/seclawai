@@ -49,7 +49,7 @@ export async function doctor() {
     return;
   }
 
-  const env = { ...process.env, COMPOSE_PROJECT_NAME: "seclaw" };
+  const env = { ...process.env };
 
   // 3. Containers running
   s.start("Checking containers...");
@@ -137,15 +137,34 @@ async function checkDockerHealth(): Promise<CheckResult> {
   }
 }
 
+async function getContainerName(projectDir: string, service: string): Promise<string | null> {
+  try {
+    const result = await execa("docker", [
+      "compose", "ps", service, "--format", "{{.Name}}",
+    ], { cwd: projectDir, env: { ...process.env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) } });
+    const name = result.stdout.trim().split("\n")[0];
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
+function getProjectName(projectDir: string): string {
+  // Match what docker compose would use — directory name, lowercased, special chars removed
+  const base = projectDir.split("/").pop() || "seclaw";
+  return base.toLowerCase().replace(/[^a-z0-9-]/g, "");
+}
+
 async function checkContainers(
   projectDir: string,
-  env: Record<string, string | undefined>
+  _env: Record<string, string | undefined>
 ): Promise<CheckResult[]> {
   const expected = ["agent", "cloudflared", "desktop-commander"];
   const results: CheckResult[] = [];
+  const env = { ..._env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) };
 
   for (const svc of expected) {
-    const containerName = `seclaw-${svc}-1`;
+    const containerName = await getContainerName(projectDir, svc) || `${getProjectName(projectDir)}-${svc}-1`;
     try {
       const statusResult = await execa("docker", [
         "inspect", containerName, "--format", "{{.State.Status}}",
@@ -204,8 +223,9 @@ async function checkContainers(
 
 async function checkAgentHealth(
   projectDir: string,
-  env: Record<string, string | undefined>
+  _env: Record<string, string | undefined>
 ): Promise<CheckResult> {
+  const env = { ..._env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) };
   try {
     const result = await execa("docker", [
       "compose", "exec", "agent", "wget", "-q", "-O-", "http://localhost:3000/health",
@@ -238,7 +258,7 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
     const result = await execa(
       "docker",
       ["compose", "logs", "cloudflared", "--no-log-prefix"],
-      { cwd: projectDir, env: { ...process.env, COMPOSE_PROJECT_NAME: "seclaw" } }
+      { cwd: projectDir, env: { ...process.env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) } }
     );
     const combined = result.stdout + "\n" + result.stderr;
     const match = combined.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
@@ -250,7 +270,7 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
         message: "No URL found in logs",
         fix: async () => {
           await clearTunnelCache(projectDir);
-          const env = { ...process.env, COMPOSE_PROJECT_NAME: "seclaw" };
+          const env = { ...process.env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) };
           await execa("docker", ["compose", "restart", "cloudflared"], { cwd: projectDir, env });
           const url = await getTunnelUrl(projectDir, 20);
           return url ? `New tunnel: ${url}` : "Restarted cloudflared";

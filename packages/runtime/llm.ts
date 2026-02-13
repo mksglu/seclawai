@@ -58,7 +58,7 @@ interface AnthropicResponse {
 const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
   openrouter: {
     baseURL: "https://openrouter.ai/api/v1",
-    defaultModel: "openrouter/auto",
+    defaultModel: "google/gemini-3-flash-preview",
     envKey: "OPENROUTER_API_KEY",
   },
   openai: {
@@ -140,21 +140,25 @@ export async function runAgent(
     let response;
     const callStart = Date.now();
     try {
-      // When tools are present and using OpenRouter, use a tool-capable model
-      // instead of openrouter/auto (which may route to models with poor tool support)
       const hasTools = tools.length > 0;
-      const useModel = hasTools && model === "openrouter/auto"
-        ? "google/gemini-2.5-flash"
-        : model;
 
       response = await client.chat.completions.create({
-        model: useModel,
+        model,
         messages: messages as OpenAI.ChatCompletionMessageParam[],
         tools: hasTools ? tools as OpenAI.ChatCompletionTool[] : undefined,
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 2048,
+        // @ts-expect-error OpenRouter extended params — disable thinking for faster responses
+        reasoning: { effort: "none" },
       });
     } catch (err) {
+      const e = err as Error & { status?: number; error?: unknown; code?: string; body?: unknown; headers?: unknown };
+      console.error(`[llm] API error: status=${e.status || "?"} code=${e.code || "?"} message=${e.message}`);
+      // OpenAI SDK puts error details in .error or .body
+      if (e.error) console.error(`[llm] Error body:`, JSON.stringify(e.error).substring(0, 500));
+      if (e.body) console.error(`[llm] Response body:`, JSON.stringify(e.body).substring(0, 500));
+      // Log full stringified error as fallback
+      try { console.error(`[llm] Full error:`, JSON.stringify(err, Object.getOwnPropertyNames(err as object)).substring(0, 1000)); } catch { /* */ }
       if (config.llmProvider === "anthropic" && config.llmApiKey.startsWith("sk-ant-")) {
         return await runAnthropicDirect(config, messages, tools, toolCtx);
       }
@@ -312,7 +316,7 @@ function buildSystemPrompt(config: AgentConfig): string {
 - **reports/** — Research results, summaries, digests. Use \`save_report\` tool.
 - **drafts/** — Draft emails, messages, documents to review. Use \`save_draft\` tool.
 - **config/** — Schedules and capability settings (managed by system).
-Use \`list_files\` and \`read_file\` to browse any directory.
+Use \`list_files\` and \`read_workspace_file\` to browse any directory.
 ${memory ? `\n## Memory\n${memory}` : ""}
 
 ## Rules

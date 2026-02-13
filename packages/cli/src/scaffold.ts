@@ -1,4 +1,4 @@
-import { mkdir, writeFile, cp } from "node:fs/promises";
+import { mkdir, writeFile, cp, rm, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { SetupAnswers } from "./prompts.js";
@@ -37,21 +37,46 @@ export async function scaffoldProject(
 async function writeEnv(dir: string, answers: SetupAnswers) {
   const config = getProviderConfig(answers.llmProvider);
 
+  // Preserve values from existing .env (TELEGRAM_CHAT_ID, COMPOSIO_USER_ID, etc.)
+  const existing = await readExistingEnv(join(dir, ".env"));
+
   const lines = [
     `# LLM Provider: ${config.label}`,
     `LLM_PROVIDER=${answers.llmProvider}`,
+    ...(existing.LLM_MODEL ? [`LLM_MODEL=${existing.LLM_MODEL}`] : []),
     `${config.envVar}=${answers.llmApiKey}`,
     `TIMEZONE=${answers.timezone}`,
     `TELEGRAM_BOT_TOKEN=${answers.telegramToken}`,
-    `TELEGRAM_CHAT_ID=`,
+    `TELEGRAM_CHAT_ID=${existing.TELEGRAM_CHAT_ID || ""}`,
   ];
 
   if (answers.composioApiKey) {
     lines.push(`COMPOSIO_API_KEY=${answers.composioApiKey}`);
-    lines.push(`COMPOSIO_USER_ID=${answers.composioUserId || generateUserId()}`);
+    lines.push(`COMPOSIO_USER_ID=${existing.COMPOSIO_USER_ID || answers.composioUserId || generateUserId()}`);
+  }
+
+  // Preserve INNGEST_DEV if it was set
+  if (existing.INNGEST_DEV) {
+    lines.push(`INNGEST_DEV=${existing.INNGEST_DEV}`);
   }
 
   await writeFile(join(dir, ".env"), lines.join("\n") + "\n");
+}
+
+async function readExistingEnv(path: string): Promise<Record<string, string>> {
+  const env: Record<string, string> = {};
+  try {
+    const content = await readFile(path, "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        env[trimmed.substring(0, eqIdx)] = trimmed.substring(eqIdx + 1);
+      }
+    }
+  } catch { /* no existing .env */ }
+  return env;
 }
 
 function generateUserId(): string {
@@ -153,10 +178,17 @@ networks:
 
 /**
  * Copy agent runtime files from CLI templates.
+ * Cleans the agent/ dir first to remove stale files from previous scaffolding.
  */
 async function copyAgentFiles(dir: string) {
   const agentTemplateSrc = resolve(import.meta.dirname, "runtime");
   const agentDest = join(dir, "agent");
+
+  // Clean agent/ dir to prevent stale files (old .ts, chunks, etc.)
+  if (existsSync(agentDest)) {
+    await rm(agentDest, { recursive: true });
+  }
+  await mkdir(agentDest, { recursive: true });
 
   if (existsSync(agentTemplateSrc)) {
     await cp(agentTemplateSrc, agentDest, { recursive: true });
@@ -485,10 +517,17 @@ rules:
   await writeFile(join(dir, "permissions.yml"), content);
 }
 
+/** Write a file only if it doesn't already exist — preserves user data on re-create. */
+async function writeIfMissing(path: string, content: string) {
+  if (!existsSync(path)) {
+    await writeFile(path, content);
+  }
+}
+
 async function writeSeedFiles(dir: string, answers: SetupAnswers) {
   const today = new Date().toISOString().split("T")[0];
 
-  await writeFile(
+  await writeIfMissing(
     join(dir, "shared/memory/learnings.md"),
     `# Agent Memory
 
@@ -505,7 +544,7 @@ async function writeSeedFiles(dir: string, answers: SetupAnswers) {
 `
   );
 
-  await writeFile(
+  await writeIfMissing(
     join(dir, "shared/tasks/welcome.md"),
     `# Welcome Task
 - [ ] Introduce yourself to the user on Telegram
@@ -515,7 +554,7 @@ async function writeSeedFiles(dir: string, answers: SetupAnswers) {
 `
   );
 
-  await writeFile(
+  await writeIfMissing(
     join(dir, "shared/config/agent.md"),
     `# Agent Configuration
 
@@ -558,12 +597,12 @@ async function writeSeedFiles(dir: string, answers: SetupAnswers) {
     ``
   );
 
-  await writeFile(
+  await writeIfMissing(
     join(dir, "shared/config/integrations.md"),
     integrations.join("\n")
   );
 
-  await writeFile(
+  await writeIfMissing(
     join(dir, `shared/reports/${today}.md`),
     `# Daily Report — ${today}
 
@@ -588,7 +627,7 @@ node_modules/
 .DS_Store
 .tunnel-url
 `;
-  await writeFile(join(dir, ".gitignore"), content);
+  await writeIfMissing(join(dir, ".gitignore"), content);
 }
 
 async function writeDockerignore(dir: string) {
@@ -603,5 +642,5 @@ shared/
 templates/
 .tunnel-url
 `;
-  await writeFile(join(dir, ".dockerignore"), content);
+  await writeIfMissing(join(dir, ".dockerignore"), content);
 }

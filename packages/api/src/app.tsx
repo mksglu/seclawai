@@ -68,9 +68,22 @@ app.use("*", async (c, next) => {
 });
 
 // Better Auth handler — all /api/auth/* routes
-app.on(["POST", "GET"], "/api/auth/*", (c) => {
-  const auth = getAuth(c.env);
-  return auth.handler(c.req.raw);
+app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+  try {
+    const auth = getAuth(c.env);
+    const res = await auth.handler(c.req.raw);
+    if (!res.ok) {
+      const body = await res.clone().text();
+      console.error("Auth handler non-OK:", res.status, body);
+      if (!body) {
+        return c.json({ error: "Auth error", status: res.status, debug: "empty body from better-auth" }, res.status as 500);
+      }
+    }
+    return res;
+  } catch (err) {
+    console.error("Auth handler error:", err);
+    return c.json({ error: String(err), stack: (err as Error).stack }, 500);
+  }
 });
 
 // --- API Routes ---

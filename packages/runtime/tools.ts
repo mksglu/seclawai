@@ -101,24 +101,38 @@ export async function initTools(config: AgentConfig): Promise<ToolContext> {
 
     const composioTools = await connectComposio(config);
     if (composioTools) {
+      const names = new Set(allTools.map((t) => t.name));
+      let skipped = 0;
       for (const tool of composioTools.tools) {
+        if (names.has(tool.name)) {
+          console.log(`[tools] Composio "${tool.name}" skipped (duplicate)`);
+          skipped++;
+          continue;
+        }
         allTools.push(tool);
         toolSources.set(tool.name, {
           execute: composioTools.execute,
           source: "composio",
         });
+        names.add(tool.name);
       }
-      console.log(`[tools] Composio: ${composioTools.tools.length} tools`);
+      console.log(`[tools] Composio: ${composioTools.tools.length - skipped} tools${skipped ? ` (${skipped} dupes skipped)` : ""}`);
     }
   };
 
   await loadComposio();
 
-  // 3. Built-in tools
+  // 3. Built-in tools (skip if name already taken by Commander/Composio)
   const builtins = createBuiltinTools(config);
+  const existingNames = new Set(allTools.map((t) => t.name));
   for (const b of builtins) {
+    if (existingNames.has(b.definition.name)) {
+      console.log(`[tools] Builtin "${b.definition.name}" skipped (duplicate of commander/composio)`);
+      continue;
+    }
     allTools.push(b.definition);
     toolSources.set(b.definition.name, { execute: b.execute, source: "builtin" });
+    existingNames.add(b.definition.name);
   }
 
   const ctx: ToolContext = {
@@ -250,7 +264,7 @@ async function connectComposio(config: AgentConfig): Promise<ComposioConnection 
     // 2. Fetch important tools for each connected app in parallel
     const toolResults = await Promise.allSettled(
       activeApps.map((app) =>
-        apiFetch(`/tools?toolkit_slug=${app}&important=true&limit=20`)
+        apiFetch(`/tools?toolkit_slug=${app}&important=true&limit=8`)
       )
     );
 
@@ -834,7 +848,7 @@ function createBuiltinTools(config: AgentConfig): BuiltinTool[] {
     // 13. Read a workspace file
     {
       definition: {
-        name: "read_file",
+        name: "read_workspace_file",
         description:
           "Read a file from the workspace. Use to show the user a specific task, note, report, or draft.",
         inputSchema: {

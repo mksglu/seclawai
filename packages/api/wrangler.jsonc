@@ -10,7 +10,7 @@
     { "pattern": "seclawai.com", "custom_domain": true }
   ],
   "dev": {
-    "port": 8787
+    "port": 8788
   },
   "d1_databases": [
     {

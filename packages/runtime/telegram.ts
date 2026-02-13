@@ -147,9 +147,10 @@ export async function handleWebhook(
     await sendMessage(config.telegramToken, chatId, response + footer);
     console.log(`[telegram] Sent to chat ${chatId}`);
   } catch (err) {
-    const e = err as Error;
-    console.error(`[telegram] Error: ${e.message}`);
-    await sendMessage(config.telegramToken, chatId, "An error occurred. Please try again.");
+    const e = err as Error & { status?: number };
+    const detail = e.status ? `${e.status} ${e.message}` : e.message;
+    console.error(`[telegram] Error: ${detail}`);
+    await sendMessage(config.telegramToken, chatId, `Error: ${detail.substring(0, 200)}`);
   }
 }
 
