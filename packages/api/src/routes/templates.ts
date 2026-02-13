@@ -84,7 +84,34 @@ templates.post("/activate", async (c) => {
   });
 });
 
-// List owned templates (token required)
+// Get current user's token (auth required, read-only)
+templates.get("/my-token", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Authentication required" }, 401);
+  }
+
+  const tokenRow = await c.env.DB.prepare(
+    "SELECT id, token FROM tokens WHERE user_id = ?"
+  ).bind(user.id).first<{ id: string; token: string }>();
+
+  if (!tokenRow) {
+    return c.json({ token: null, templates: [] });
+  }
+
+  const owned = await c.env.DB.prepare(
+    "SELECT t.id, t.name, t.description, p.purchased_at FROM purchases p JOIN templates t ON p.template_id = t.id WHERE p.token_id = ? ORDER BY p.purchased_at"
+  ).bind(tokenRow.id).all<{
+    id: string;
+    name: string;
+    description: string;
+    purchased_at: string;
+  }>();
+
+  return c.json({ token: tokenRow.token, templates: owned.results });
+});
+
+// List owned templates (token required — for CLI)
 templates.get("/owned", async (c) => {
   const token = c.req.header("x-token") || c.req.query("token");
 

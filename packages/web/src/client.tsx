@@ -276,37 +276,28 @@ interface OwnedTemplate {
   purchased_at: string;
 }
 
-function useOwnedTemplates(token: string | null) {
-  return useQuery<{ templates: OwnedTemplate[] }>({
-    queryKey: ["owned", token],
+interface MyTokenResponse {
+  token: string | null;
+  templates: OwnedTemplate[];
+}
+
+function useMyToken(enabled: boolean) {
+  return useQuery<MyTokenResponse>({
+    queryKey: ["my-token"],
     queryFn: async () => {
-      const res = await fetch(API + "/api/templates/owned?token=" + token);
+      const res = await fetch(API + "/api/templates/my-token", {
+        credentials: "include",
+      });
       return res.json();
     },
-    enabled: !!token,
+    enabled,
   });
 }
 
 function DashboardContent() {
   const session = useSession();
-  const [token, setToken] = useState<string | null>(null);
   const [tokenVisible, setTokenVisible] = useState(false);
-  const owned = useOwnedTemplates(token);
-
-  useEffect(() => {
-    if (session.data?.user) {
-      // Fetch user's token
-      fetch(API + "/api/templates/regenerate", {
-        method: "POST",
-        credentials: "include",
-      })
-        .then((r) => r.json() as Promise<{ token?: string }>)
-        .then((data) => {
-          if (data.token) setToken(data.token);
-        })
-        .catch(() => {});
-    }
-  }, [session.data]);
+  const myToken = useMyToken(!!session.data?.user);
 
   if (session.isPending) {
     return <div className="text-center text-neutral-500">Loading...</div>;
@@ -327,7 +318,8 @@ function DashboardContent() {
   }
 
   const user = session.data.user;
-  const templates = owned.data?.templates || [];
+  const token = myToken.data?.token || null;
+  const templates = myToken.data?.templates || [];
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -347,7 +339,7 @@ function DashboardContent() {
       .then((r) => r.json() as Promise<{ token?: string; error?: string }>)
       .then((data) => {
         if (data.token) {
-          setToken(data.token);
+          myToken.refetch();
           alert("Token regenerated.");
         } else {
           alert(data.error || "Failed to regenerate.");
