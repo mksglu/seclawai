@@ -104,7 +104,14 @@ export async function status() {
       }
     } catch { /* */ }
 
-    infoLines.push(`${pc.white(pc.bold("Workspace:"))}  ${resolve(projectDir, "shared")}`);
+    // Read workspace path from .env or default to ./shared
+    let wsPath = "shared";
+    try {
+      const envContent = await readFile(resolve(projectDir, ".env"), "utf-8");
+      const wsMatch = envContent.match(/WORKSPACE_HOST_PATH=(.+)/);
+      if (wsMatch?.[1]?.trim()) wsPath = wsMatch[1].trim();
+    } catch { /* */ }
+    infoLines.push(`${pc.white(pc.bold("Workspace:"))}  ${resolve(projectDir, wsPath)}`);
     infoLines.push(`${pc.white(pc.bold("Project:"))}   ${projectDir}`);
 
     p.note(infoLines.join("\n"), "seclaw");

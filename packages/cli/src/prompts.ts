@@ -17,6 +17,7 @@ export interface SetupAnswers {
   composioUserId: string;
   template: string;
   timezone: string;
+  workspacePath: string;
 }
 
 const PROVIDER_CONFIG: Record<
@@ -166,6 +167,19 @@ export async function collectSetupAnswers(targetDir?: string): Promise<SetupAnsw
     }
   }
 
+  // --- Workspace Path ---
+  const defaultWorkspace = "./shared";
+  const workspaceInput = await p.text({
+    message: "Workspace directory (where agent stores files)",
+    placeholder: defaultWorkspace,
+    defaultValue: defaultWorkspace,
+    validate: (v) => {
+      if (!v) return "Workspace path cannot be empty";
+    },
+  });
+  if (p.isCancel(workspaceInput)) process.exit(0);
+  const workspacePath = (workspaceInput as string) || defaultWorkspace;
+
   // --- Template ---
   const templateOptions: { value: string; label: string; hint: string }[] = [
     {
@@ -210,6 +224,7 @@ export async function collectSetupAnswers(targetDir?: string): Promise<SetupAnsw
     composioUserId: "",
     template: template as string,
     timezone: tz,
+    workspacePath,
   };
 }
 

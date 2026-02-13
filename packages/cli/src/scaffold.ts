@@ -8,30 +8,25 @@ export async function scaffoldProject(
   targetDir: string,
   answers: SetupAnswers
 ) {
-  const dirs = [
-    "shared/tasks",
-    "shared/reports",
-    "shared/notes",
-    "shared/drafts",
-    "shared/memory",
-    "shared/config",
-    "templates",
-    "commander",
-    "agent",
-  ];
+  const ws = answers.workspacePath || "./shared";
+  const wsSubdirs = ["tasks", "reports", "notes", "drafts", "memory", "config"];
 
-  for (const dir of dirs) {
+  for (const sub of wsSubdirs) {
+    await mkdir(resolve(targetDir, ws, sub), { recursive: true });
+  }
+  for (const dir of ["templates", "commander", "agent"]) {
     await mkdir(join(targetDir, dir), { recursive: true });
   }
 
   await writeEnv(targetDir, answers);
-  await writeDockerCompose(targetDir);
+  await writeDockerCompose(targetDir, ws);
+  await writeTunnelScript(targetDir, ws);
   await writePermissions(targetDir);
   await writeGitignore(targetDir);
   await writeDockerignore(targetDir);
   await copyAgentFiles(targetDir);
   await copyCommanderFiles(targetDir);
-  await writeSeedFiles(targetDir, answers);
+  await writeSeedFiles(targetDir, answers, ws);
 }
 
 async function writeEnv(dir: string, answers: SetupAnswers) {
@@ -53,6 +48,11 @@ async function writeEnv(dir: string, answers: SetupAnswers) {
   if (answers.composioApiKey) {
     lines.push(`COMPOSIO_API_KEY=${answers.composioApiKey}`);
     lines.push(`COMPOSIO_USER_ID=${existing.COMPOSIO_USER_ID || answers.composioUserId || generateUserId()}`);
+  }
+
+  // Workspace path (for reference by CLI commands)
+  if (answers.workspacePath && answers.workspacePath !== "./shared") {
+    lines.push(`WORKSPACE_HOST_PATH=${answers.workspacePath}`);
   }
 
   // Preserve INNGEST_DEV if it was set
@@ -88,7 +88,7 @@ function generateUserId(): string {
   return id;
 }
 
-async function writeDockerCompose(dir: string) {
+async function writeDockerCompose(dir: string, workspacePath = "./shared") {
   const content = `services:
   inngest:
     image: inngest/inngest:latest
@@ -106,7 +106,7 @@ async function writeDockerCompose(dir: string) {
     image: seclaw/agent:latest
     restart: unless-stopped
     volumes:
-      - ./shared:/workspace:rw
+      - ${workspacePath}:/workspace:rw
       - ./templates:/templates:ro
     env_file:
       - .env
@@ -131,7 +131,12 @@ async function writeDockerCompose(dir: string) {
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --no-autoupdate --url http://agent:3000
+    entrypoint: ["/bin/sh", "/tunnel-start.sh"]
+    volumes:
+      - ${workspacePath}:/workspace:rw
+      - ./tunnel-start.sh:/tunnel-start.sh:ro
+    env_file:
+      - .env
     networks:
       - agent-net
     depends_on:
@@ -151,7 +156,7 @@ async function writeDockerCompose(dir: string) {
     image: seclaw/desktop-commander:latest
     restart: unless-stopped
     volumes:
-      - ./shared:/workspace:rw
+      - ${workspacePath}:/workspace:rw
       - ./permissions.yml:/permissions.yml:ro
     security_opt:
       - no-new-privileges:true
@@ -174,6 +179,45 @@ networks:
 `;
 
   await writeFile(join(dir, "docker-compose.yml"), content);
+}
+
+/**
+ * Write the tunnel startup script that auto-updates Telegram webhook
+ * when the Cloudflare quick tunnel URL changes on restart.
+ */
+async function writeTunnelScript(dir: string, _workspacePath = "./shared") {
+  const script = `#!/bin/sh
+# Runs cloudflared and auto-updates Telegram webhook when tunnel URL changes.
+# This solves the "webhook points to old tunnel" problem on container restart.
+
+cloudflared tunnel --no-autoupdate --url http://agent:3000 2>&1 | while IFS= read -r line; do
+  # Forward all output to stderr so docker logs still works
+  printf '%s\\n' "$line" >&2
+
+  # Detect tunnel URL in log output
+  case "$line" in
+    *https://*trycloudflare.com*)
+      # Extract URL using shell-only (no grep dependency)
+      URL=$(echo "$line" | sed -n 's|.*\\(https://[a-z0-9-]*\\.trycloudflare\\.com\\).*|\\1|p')
+      if [ -z "$URL" ]; then continue; fi
+
+      # Write to shared volume so agent/CLI can read it
+      echo "$URL" > /workspace/.tunnel-url
+
+      # Auto-update Telegram webhook if bot token is available
+      if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+        wget -q -O /dev/null \\
+          --post-data='{"url":"'"$URL"'/webhook","allowed_updates":["message","callback_query"]}' \\
+          --header='Content-Type: application/json' \\
+          "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" 2>/dev/null && \\
+          printf '[tunnel] Webhook updated: %s\\n' "$URL" >&2 || \\
+          printf '[tunnel] Webhook update failed\\n' >&2
+      fi
+      ;;
+  esac
+done
+`;
+  await writeFile(join(dir, "tunnel-start.sh"), script, { mode: 0o755 });
 }
 
 /**
@@ -524,11 +568,12 @@ async function writeIfMissing(path: string, content: string) {
   }
 }
 
-async function writeSeedFiles(dir: string, answers: SetupAnswers) {
+async function writeSeedFiles(dir: string, answers: SetupAnswers, ws = "./shared") {
   const today = new Date().toISOString().split("T")[0];
+  const wsDir = resolve(dir, ws);
 
   await writeIfMissing(
-    join(dir, "shared/memory/learnings.md"),
+    join(wsDir, "memory/learnings.md"),
     `# Agent Memory
 
 ## User Profile
@@ -545,7 +590,7 @@ async function writeSeedFiles(dir: string, answers: SetupAnswers) {
   );
 
   await writeIfMissing(
-    join(dir, "shared/tasks/welcome.md"),
+    join(wsDir, "tasks/welcome.md"),
     `# Welcome Task
 - [ ] Introduce yourself to the user on Telegram
 - [ ] Explain what you can do (file management, email, task tracking)
@@ -555,7 +600,7 @@ async function writeSeedFiles(dir: string, answers: SetupAnswers) {
   );
 
   await writeIfMissing(
-    join(dir, "shared/config/agent.md"),
+    join(wsDir, "config/agent.md"),
     `# Agent Configuration
 
 ## Workspace Structure
@@ -598,12 +643,12 @@ async function writeSeedFiles(dir: string, answers: SetupAnswers) {
   );
 
   await writeIfMissing(
-    join(dir, "shared/config/integrations.md"),
+    join(wsDir, "config/integrations.md"),
     integrations.join("\n")
   );
 
   await writeIfMissing(
-    join(dir, `shared/reports/${today}.md`),
+    join(wsDir, `reports/${today}.md`),
     `# Daily Report — ${today}
 
 ## Status

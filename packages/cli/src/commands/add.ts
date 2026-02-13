@@ -135,7 +135,14 @@ export async function add(
   }
 
   // Stack capability: copy system-prompt.md and schedules.json into capabilities dir
-  const configDir = resolve(process.cwd(), "shared", "config");
+  // Read workspace path from .env or default to ./shared
+  let wsHostPath = "shared";
+  try {
+    const envContent = await readFile(resolve(process.cwd(), ".env"), "utf-8");
+    const wsMatch = envContent.match(/WORKSPACE_HOST_PATH=(.+)/);
+    if (wsMatch?.[1]?.trim()) wsHostPath = wsMatch[1].trim();
+  } catch { /* */ }
+  const configDir = resolve(process.cwd(), wsHostPath, "config");
 
   if (existsSync(configDir)) {
     const capDir = resolve(configDir, "capabilities", template);

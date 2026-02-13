@@ -5,7 +5,6 @@ import { create } from "./commands/create.js";
 import { add } from "./commands/add.js";
 import { integrations } from "./commands/integrations.js";
 import { templates } from "./commands/templates.js";
-import { capabilities } from "./commands/capabilities.js";
 import { status } from "./commands/status.js";
 import { stop } from "./commands/stop.js";
 import { reconnect } from "./commands/reconnect.js";
@@ -40,12 +39,6 @@ program
   .alias("list")
   .description("List available templates")
   .action(templates);
-
-program
-  .command("capabilities")
-  .alias("caps")
-  .description("List and manage installed capabilities")
-  .action(capabilities);
 
 program
   .command("status")

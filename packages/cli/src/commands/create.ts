@@ -103,16 +103,17 @@ export async function create(directory: string) {
           await cp(templateSrc, templateDest, { recursive: true });
         }
 
-        // Copy system-prompt.md to shared/config for the agent to find
+        // Copy system-prompt.md to workspace config for the agent to find
+        const wsDir = resolve(targetDir, answers.workspacePath || "./shared");
         const promptSrc = resolve(templateSrc, "system-prompt.md");
         if (existsSync(promptSrc)) {
-          await cp(promptSrc, resolve(targetDir, "shared", "config", "system-prompt.md"));
+          await cp(promptSrc, resolve(wsDir, "config", "system-prompt.md"));
         }
 
-        // Copy schedules.json to shared/config for the scheduler to find
+        // Copy schedules.json to workspace config for the scheduler to find
         const schedulesSrc = resolve(templateSrc, "schedules.json");
         if (existsSync(schedulesSrc)) {
-          await cp(schedulesSrc, resolve(targetDir, "shared", "config", "schedules.json"));
+          await cp(schedulesSrc, resolve(wsDir, "config", "schedules.json"));
         }
 
         s.stop(`Template ready.`);
@@ -162,7 +163,7 @@ export async function create(directory: string) {
   }
 
   // Done!
-  showSuccess(targetDir, tunnelUrl, answers.telegramBotName, answers.llmProvider, answers.composioApiKey);
+  showSuccess(targetDir, tunnelUrl, answers.telegramBotName, answers.llmProvider, answers.composioApiKey, answers.workspacePath);
 }
 
 /**
@@ -254,6 +255,7 @@ function showSuccess(
   botName: string,
   provider?: string,
   composioKey?: string,
+  workspacePath?: string,
 ) {
   const label = (s: string) => pc.white(pc.bold(s));
   const lines = [
@@ -269,7 +271,9 @@ function showSuccess(
     lines.push(`${label("Telegram:")}   Open ${pc.green(botName)} and send a message`);
   }
 
-  lines.push(`${label("Workspace:")}  ${pc.white(targetDir + "/shared/")}`);
+  const ws = workspacePath || "./shared";
+  const wsAbsolute = resolve(targetDir, ws);
+  lines.push(`${label("Workspace:")}  ${pc.white(wsAbsolute + "/")}`);
 
   if (provider) {
     const info = PROVIDER_LABELS[provider];
