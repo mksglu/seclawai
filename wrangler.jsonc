@@ -1,5 +1,5 @@
 {
-  "name": "seclaw-web",
+  "name": "seclawaicom",
   "main": "packages/web/src/app.tsx",
   "compatibility_date": "2025-12-01",
   "compatibility_flags": ["nodejs_compat"],
