@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { execa } from "execa";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { findProjectDir } from "../docker.js";
+import { findProjectDir, stopExistingSeclaw } from "../docker.js";
 import { getTunnelUrl, clearTunnelCache, setTelegramWebhook } from "../tunnel.js";
 
 interface CheckResult {
@@ -105,6 +105,11 @@ export async function doctor() {
       p.outro("Run again after fixing manually.");
       return;
     }
+
+    // Stop any other seclaw instances first to free ports
+    s.start("Stopping conflicting containers...");
+    await stopExistingSeclaw();
+    s.stop(`${FIX} Cleared conflicting containers`);
 
     for (const check of fixable) {
       s.start(`Fixing: ${check.name}...`);

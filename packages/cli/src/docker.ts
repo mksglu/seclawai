@@ -23,27 +23,38 @@ export async function checkDocker(): Promise<{ ok: boolean; error?: string }> {
 
 /**
  * Stop any running seclaw containers to free ports.
+ * Detects seclaw projects by checking for the agent-net network or inngest/agent services.
  */
 export async function stopExistingSeclaw(): Promise<void> {
   try {
+    // Find all compose projects that have an "agent" or "inngest" service (seclaw signature)
     const result = await execa("docker", [
-      "ps",
-      "--filter", "label=com.docker.compose.project",
-      "--format", "{{.Labels}}",
+      "ps", "-a",
+      "--filter", "label=com.docker.compose.service=agent",
+      "--format", "{{index .Labels \"com.docker.compose.project\"}}",
     ]);
 
     const projects = new Set<string>();
-    for (const line of result.stdout.split("\n")) {
-      const match = line.match(/com\.docker\.compose\.project=([^,]+)/);
-      if (match) projects.add(match[1]);
+    for (const line of result.stdout.split("\n").filter(Boolean)) {
+      projects.add(line.trim());
     }
 
-    for (const project of projects) {
-      if (project.includes("seclaw") || project === "docker") {
-        try {
-          await execa("docker", ["compose", "-p", project, "down"]);
-        } catch { /* ignore */ }
+    // Also check for anything holding port 8288 (inngest)
+    try {
+      const portResult = await execa("docker", [
+        "ps", "--filter", "publish=8288",
+        "--format", "{{index .Labels \"com.docker.compose.project\"}}",
+      ]);
+      for (const line of portResult.stdout.split("\n").filter(Boolean)) {
+        projects.add(line.trim());
       }
+    } catch { /* ignore */ }
+
+    for (const project of projects) {
+      if (!project) continue;
+      try {
+        await execa("docker", ["compose", "-p", project, "down"]);
+      } catch { /* ignore */ }
     }
   } catch { /* No containers running */ }
 }
