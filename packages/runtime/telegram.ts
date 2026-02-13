@@ -61,6 +61,19 @@ export async function handleWebhook(
       const isApprove = data.startsWith("sched_approve:");
       const scheduleId = data.replace(/^sched_(approve|reject):/, "");
       await handleScheduleConfirm(chatId, scheduleId, isApprove, config, inngestClient);
+    } else if (data.startsWith("sched_toggle:")) {
+      const schedId = data.replace("sched_toggle:", "");
+      if (schedId === "_noop") { /* cancel button — do nothing */ }
+      else await handleScheduleToggle(chatId, schedId, config);
+    } else if (data.startsWith("sched_run:")) {
+      const schedId = data.replace("sched_run:", "");
+      await handleScheduleRun(chatId, schedId, config, toolCtx);
+    } else if (data.startsWith("sched_del:")) {
+      const schedId = data.replace("sched_del:", "");
+      await handleScheduleDeleteConfirm(chatId, schedId, config);
+    } else if (data.startsWith("sched_delok:")) {
+      const schedId = data.replace("sched_delok:", "");
+      await handleScheduleDeleteExecute(chatId, schedId, config);
     } else if (data.startsWith("confirm_yes:") || data.startsWith("confirm_no:")) {
       const isApprove = data.startsWith("confirm_yes:");
       const confirmId = data.replace(/^confirm_(yes|no):/, "");
@@ -495,25 +508,175 @@ async function handleSchedules(chatId: number, config: AgentConfig): Promise<voi
     return;
   }
 
-  const lines = scheduleConfig.schedules.map((s) => {
-    const status = s.enabled !== false ? "\u2705" : "\u23F8\uFE0F";
-    // Parse capability name from prefixed schedule ID (e.g. "inbox-agent:inbox-scan")
+  const lines: string[] = [];
+  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+
+  for (const s of scheduleConfig.schedules) {
+    const enabled = s.enabled !== false;
+    const status = enabled ? "\u2705" : "\u23F8\uFE0F";
+
     let displayId = s.id;
     let capLabel = "";
     if (s.id.includes(":")) {
       const [capId, schedId] = s.id.split(":", 2);
       displayId = schedId;
-      // Convert capability ID to display name (e.g. "inbox-agent" -> "Inbox Agent")
       capLabel = ` (${capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})`;
     }
-    return `${status} *${displayId}*${capLabel}\n   ${s.description}\n   \`${s.cron}\` (${s.timezone})`;
-  });
 
-  await sendMessage(
+    lines.push(`${status} *${displayId}*${capLabel}\n   ${s.description}\n   \`${s.cron}\` (${s.timezone})`);
+
+    // Action buttons per schedule
+    const toggleLabel = enabled ? "\u23F8 Disable" : "\u25B6 Enable";
+    keyboard.push([
+      { text: toggleLabel, callback_data: `sched_toggle:${s.id}` },
+      { text: "\u26A1 Run Now", callback_data: `sched_run:${s.id}` },
+      { text: "\uD83D\uDDD1 Delete", callback_data: `sched_del:${s.id}` },
+    ]);
+  }
+
+  await sendMessageWithButtons(
     config.telegramToken,
     chatId,
     `*Scheduled Tasks*\n\n${lines.join("\n\n")}`,
+    keyboard,
   );
+}
+
+/* ── Schedule management callbacks ──────────────────────────── */
+
+/**
+ * Find the correct schedules.json file for a given (possibly prefixed) schedule ID.
+ * Returns { filePath, localId } where localId is the ID within that file.
+ */
+function findScheduleFile(workspace: string, fullId: string): { filePath: string; localId: string } | null {
+  if (fullId.includes(":")) {
+    const [capId, localId] = fullId.split(":", 2);
+    const filePath = resolve(workspace, "config", "capabilities", capId, "schedules.json");
+    if (existsSync(filePath)) return { filePath, localId };
+  }
+  const filePath = resolve(workspace, "config", "schedules.json");
+  if (existsSync(filePath)) return { filePath, localId: fullId };
+  return null;
+}
+
+function readScheduleFile(filePath: string): { schedules: Array<{ id: string; cron: string; timezone: string; action: string; description: string; enabled?: boolean }>; actions: Record<string, unknown> } | null {
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+async function handleScheduleToggle(chatId: number, scheduleId: string, config: AgentConfig): Promise<void> {
+  const loc = findScheduleFile(config.workspace, scheduleId);
+  if (!loc) {
+    await sendMessage(config.telegramToken, chatId, `Schedule "${scheduleId}" not found.`);
+    return;
+  }
+
+  const data = readScheduleFile(loc.filePath);
+  if (!data) {
+    await sendMessage(config.telegramToken, chatId, "Failed to read schedule config.");
+    return;
+  }
+
+  const entry = data.schedules.find((s) => s.id === loc.localId);
+  if (!entry) {
+    await sendMessage(config.telegramToken, chatId, `Schedule "${loc.localId}" not found in config.`);
+    return;
+  }
+
+  entry.enabled = entry.enabled === false ? true : false;
+  writeFileSync(loc.filePath, JSON.stringify(data, null, 2) + "\n");
+
+  const state = entry.enabled ? "enabled \u2705" : "disabled \u23F8\uFE0F";
+  await sendMessage(config.telegramToken, chatId, `Schedule *${scheduleId}* is now ${state}`);
+}
+
+async function handleScheduleRun(chatId: number, scheduleId: string, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+  const scheduleConfig = loadScheduleConfig(config.workspace);
+  if (!scheduleConfig) {
+    await sendMessage(config.telegramToken, chatId, "No schedules configured.");
+    return;
+  }
+
+  const schedule = scheduleConfig.schedules.find((s) => s.id === scheduleId);
+  if (!schedule) {
+    await sendMessage(config.telegramToken, chatId, `Schedule "${scheduleId}" not found.`);
+    return;
+  }
+
+  const action = scheduleConfig.actions[schedule.action];
+  if (!action) {
+    await sendMessage(config.telegramToken, chatId, `Action for "${scheduleId}" not defined.`);
+    return;
+  }
+
+  await sendMessage(config.telegramToken, chatId, `Running *${scheduleId}*...`);
+
+  try {
+    // Fetch data from Composio tools (if any)
+    let fetchedData = "No data sources configured.";
+    const composioActions = (action as { composio?: Array<{ tool: string; args: Record<string, unknown> }> }).composio;
+    if (composioActions?.length) {
+      const results = await Promise.all(
+        composioActions.map((t) => toolCtx.executeTool(t.tool, t.args)),
+      );
+      fetchedData = results.join("\n---\n");
+    }
+
+    // Process with LLM
+    const prompt = `${(action as { prompt: string }).prompt}\n\nData:\n${fetchedData}`;
+    const response = await runAgent(config, toolCtx, [], prompt);
+
+    // Format and send
+    const format = (action as { telegram_format: string }).telegram_format || "{response}";
+    const msg = format
+      .replace("{response}", response)
+      .replace("{timestamp}", new Date().toLocaleString("tr-TR", { timeZone: config.timezone }));
+
+    await sendMessage(config.telegramToken, chatId, msg);
+  } catch (err) {
+    await sendMessage(config.telegramToken, chatId, `Failed to run schedule: ${(err as Error).message}`);
+  }
+}
+
+async function handleScheduleDeleteConfirm(chatId: number, scheduleId: string, config: AgentConfig): Promise<void> {
+  await sendMessageWithButtons(
+    config.telegramToken,
+    chatId,
+    `Delete schedule *${scheduleId}*?`,
+    [[
+      { text: "\u2705 Yes, delete", callback_data: `sched_delok:${scheduleId}` },
+      { text: "\u274C Cancel", callback_data: `sched_toggle:_noop` },
+    ]],
+  );
+}
+
+async function handleScheduleDeleteExecute(chatId: number, scheduleId: string, config: AgentConfig): Promise<void> {
+  const loc = findScheduleFile(config.workspace, scheduleId);
+  if (!loc) {
+    await sendMessage(config.telegramToken, chatId, `Schedule "${scheduleId}" not found.`);
+    return;
+  }
+
+  const data = readScheduleFile(loc.filePath);
+  if (!data) {
+    await sendMessage(config.telegramToken, chatId, "Failed to read schedule config.");
+    return;
+  }
+
+  const idx = data.schedules.findIndex((s) => s.id === loc.localId);
+  if (idx === -1) {
+    await sendMessage(config.telegramToken, chatId, `Schedule "${loc.localId}" not found in config.`);
+    return;
+  }
+
+  const removed = data.schedules.splice(idx, 1)[0];
+  delete data.actions[removed.action];
+  writeFileSync(loc.filePath, JSON.stringify(data, null, 2) + "\n");
+
+  await sendMessage(config.telegramToken, chatId, `Schedule *${scheduleId}* deleted. Restart agent to fully remove cron trigger.`);
 }
 
 /* ── /capabilities command ────────────────────────────────────── */
