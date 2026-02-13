@@ -1,0 +1,13 @@
+{
+  "name": "@seclaw/templates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc && mkdir -p dist/free dist/paid && (cp -r free/. dist/free/ 2>/dev/null || true) && (cp -r paid/. dist/paid/ 2>/dev/null || true)",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

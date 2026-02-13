@@ -1,0 +1,21 @@
+{
+  "id": "data-analyst",
+  "name": "Data Analyst",
+  "description": "Privacy-first local data analysis — drop CSV/JSON files, ask questions, get Python-powered insights. All data stays on your machine.",
+  "price": 0,
+  "tier": "free",
+  "hook": "npx seclaw add data-analyst",
+  "requirements": {
+    "credentials": ["anthropic", "telegram"],
+    "optional_credentials": [],
+    "mcp_servers": ["desktop-commander"]
+  },
+  "engine": "inngest",
+  "shared_folders": [
+    "data/inbox",
+    "data/profiles",
+    "data/scripts",
+    "data/results",
+    "data/reports"
+  ]
+}

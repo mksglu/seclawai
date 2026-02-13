@@ -1,0 +1,29 @@
+{
+  "name": "seclaw",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.dev.jsonc",
+    "dev:stripe": "stripe listen --forward-to localhost:8787/api/webhook/stripe",
+    "postinstall": "pnpm --filter seclaw build",
+    "seclaw": "node packages/cli/dist/cli.js",
+    "build": "turbo build",
+    "deploy": "turbo deploy",
+    "deploy:api": "turbo deploy --filter=@seclaw/api",
+    "deploy:web": "turbo deploy --filter=@seclaw/web",
+    "db:migrate": "wrangler d1 execute seclaw --file=./packages/api/src/db/schema.sql",
+    "db:seed": "wrangler d1 execute seclaw --file=./packages/api/src/db/seed.sql",
+    "typecheck": "turbo typecheck",
+    "changeset": "changeset",
+    "release": "pnpm --filter seclaw build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "seclaw": "workspace:*",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

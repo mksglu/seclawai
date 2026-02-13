@@ -1,0 +1,18 @@
+# Stripe test keys — get from https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY=sk_test_your_test_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# CORS
+CORS_ORIGIN=http://localhost:8787
+
+# Auth — get from https://console.cloud.google.com/apis/credentials
+BETTER_AUTH_URL=http://localhost:8787
+BETTER_AUTH_SECRET=generate-a-random-secret
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Email — get from https://resend.com/api-keys
+RESEND_API_KEY=re_your_resend_key
+
+# R2 bucket name (for upload-templates script)
+R2_BUCKET=your-r2-bucket-name
