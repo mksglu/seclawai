@@ -7,37 +7,32 @@ interface LayoutProps {
   description?: string;
 }
 
-/* Critical inline CSS — prevents FOUC by styling the page before external CSS loads */
-const CRITICAL_CSS = `
-html{background:#0a0a0a;color:#fff;-webkit-font-smoothing:antialiased}
-body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}
-nav{position:fixed;top:0;z-index:50;width:100%;border-bottom:1px solid #262626;background:rgba(10,10,10,.8);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
-nav>div{max-width:72rem;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:.875rem 1.5rem}
-nav a{color:#a3a3a3;font-size:.875rem;text-decoration:none}
-nav a:first-child{color:#fff;font-weight:700;font-family:JetBrains Mono,ui-monospace,monospace}
-`.trim();
+/* Critical inline CSS — only html/body to prevent FOUC */
+const CRITICAL_CSS = `html{background:#0a0a0a;color:#fff;-webkit-font-smoothing:antialiased}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}`;
 
 function Nav() {
   return (
-    <nav>
-      <div>
-        <a href="/">seclaw</a>
+    <nav className="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <a href="/" className="font-mono text-sm font-bold text-white">
+          seclaw
+        </a>
         <div className="flex items-center gap-6">
           <a
             href="/templates"
-            className="hidden sm:block"
+            className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
           >
             Templates
           </a>
           <a
             href="/docs"
-            className="hidden sm:block"
+            className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
           >
             Docs
           </a>
           <a
             href="https://github.com/mksglu/seclawai"
-            className="hidden sm:block"
+            className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
             target="_blank"
           >
             GitHub
