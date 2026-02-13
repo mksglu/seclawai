@@ -4,7 +4,7 @@ import { program } from "commander";
 import { create } from "./commands/create.js";
 import { add } from "./commands/add.js";
 import { integrations } from "./commands/integrations.js";
-import { templates } from "./commands/templates.js";
+
 import { status } from "./commands/status.js";
 import { stop } from "./commands/stop.js";
 import { reconnect } from "./commands/reconnect.js";
@@ -33,12 +33,6 @@ program
   .command("integrations")
   .description("Manage integrations (Gmail, GitHub, Notion...)")
   .action(integrations);
-
-program
-  .command("templates")
-  .alias("list")
-  .description("List available templates")
-  .action(templates);
 
 program
   .command("status")

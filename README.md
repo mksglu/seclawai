@@ -204,7 +204,6 @@ npx seclaw integrations    # CLI: connect/disconnect
 ```bash
 npx seclaw                           # Interactive setup wizard
 npx seclaw add <template> --key TOKEN # Download a purchased template
-npx seclaw templates                 # List all available templates
 npx seclaw capabilities              # List/remove installed capabilities
 npx seclaw integrations              # Connect/disconnect services
 npx seclaw status                    # Check services & health
