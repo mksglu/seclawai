@@ -1,0 +1,11 @@
+{
+  "name": "seclaw-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "openai": "^4.73.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "inngest": "^3.22.0"
+  }
+}

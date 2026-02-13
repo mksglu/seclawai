@@ -1,0 +1,3 @@
+# Stripe test keys — get from https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY=sk_test_your_test_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here

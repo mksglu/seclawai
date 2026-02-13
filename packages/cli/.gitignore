@@ -1,0 +1,9 @@
+# Build output
+dist/
+
+# Bundled runtime (copied from packages/runtime during prebuild)
+runtime/agent.js
+
+# npm pack artifacts
+*.tgz
+package/

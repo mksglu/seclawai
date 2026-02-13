@@ -1,0 +1,30 @@
+{
+  "schedules": [
+    {
+      "id": "inbox-scan",
+      "cron": "*/30 * * * *",
+      "timezone": "Europe/Istanbul",
+      "action": "data-inbox-scan",
+      "description": "Scan for new data files every 30 minutes"
+    },
+    {
+      "id": "weekly-report",
+      "cron": "0 9 * * 1",
+      "timezone": "Europe/Istanbul",
+      "action": "weekly-data-report",
+      "description": "Weekly data analysis summary on Monday 9AM"
+    }
+  ],
+  "actions": {
+    "data-inbox-scan": {
+      "composio": [],
+      "prompt": "Check /shared/data/inbox/ for new data files (CSV, JSON, TSV). For each new file not in /shared/data/processed.json: detect format, write a Python profiling script (row count, columns, data types, null counts, value ranges), execute it, save the profile to /shared/data/profiles/, and update processed.json. Report what you found.",
+      "telegram_format": "*New Data File*\n\n{response}\n\n_{timestamp}_"
+    },
+    "weekly-data-report": {
+      "composio": [],
+      "prompt": "Generate a weekly data analysis summary. Check /shared/data/profiles/ for all profiled files. Compile: total files processed this week, total rows analyzed, column statistics across datasets. If same-schema files exist (e.g. weekly sales CSVs), run a Python trend comparison. Save report to /shared/data/reports/.",
+      "telegram_format": "*Weekly Data Report*\n\n{response}\n\n_{timestamp}_"
+    }
+  }
+}

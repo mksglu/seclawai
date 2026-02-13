@@ -1,0 +1,9 @@
+{
+  "capabilities": [
+    "csv-analysis",
+    "json-processing",
+    "data-profiling",
+    "python-execution",
+    "privacy-first-analytics"
+  ]
+}

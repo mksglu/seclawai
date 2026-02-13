@@ -1,0 +1,636 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { runAgent } from "./llm.js";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import type { AgentConfig } from "./config.js";
+import { pendingConfirmations, type ToolContext, type ToolDefinition } from "./tools.js";
+import { loadScheduleConfig } from "./scheduler.js";
+import { loadInstalledCapabilities } from "./config.js";
+import type { Inngest } from "inngest";
+
+interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+interface TelegramUpdate {
+  message?: {
+    text?: string;
+    chat: { id: number };
+    from?: { first_name?: string };
+  };
+  callback_query?: {
+    id: string;
+    data?: string;
+    message?: { message_id: number; chat: { id: number } };
+    from?: { first_name?: string };
+  };
+}
+
+const MAX_HISTORY = 20; // messages per chat
+
+export async function handleWebhook(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: AgentConfig,
+  toolCtx: ToolContext,
+  inngestClient?: Inngest,
+): Promise<void> {
+  const body = await parseBody(req);
+  // Respond immediately to Telegram (avoid timeout)
+  res.writeHead(200);
+  res.end();
+
+  // Handle inline keyboard button presses
+  const callback = body?.callback_query;
+  if (callback?.data && callback.message?.chat?.id) {
+    const chatId = callback.message.chat.id;
+    const data = callback.data;
+    console.log(`[telegram] Callback: ${data}`);
+
+    // Acknowledge the button press
+    await answerCallbackQuery(config.telegramToken, callback.id);
+
+    if (data.startsWith("int_connect:")) {
+      const app = data.replace("int_connect:", "");
+      await handleIntegrationConnect(chatId, app, config, toolCtx);
+    } else if (data.startsWith("int_disconnect:")) {
+      const app = data.replace("int_disconnect:", "");
+      await handleIntegrationDisconnect(chatId, app, config, toolCtx);
+    } else if (data.startsWith("sched_approve:") || data.startsWith("sched_reject:")) {
+      const isApprove = data.startsWith("sched_approve:");
+      const scheduleId = data.replace(/^sched_(approve|reject):/, "");
+      await handleScheduleConfirm(chatId, scheduleId, isApprove, config, inngestClient);
+    } else if (data.startsWith("confirm_yes:") || data.startsWith("confirm_no:")) {
+      const isApprove = data.startsWith("confirm_yes:");
+      const confirmId = data.replace(/^confirm_(yes|no):/, "");
+      const msgId = callback.message?.message_id;
+      await handleConfirmation(chatId, msgId, confirmId, isApprove, config, toolCtx);
+    }
+    return;
+  }
+
+  const message = body?.message;
+  if (!message?.text) return;
+
+  const chatId = message.chat.id;
+  const userText = message.text;
+  const userName = message.from?.first_name || "User";
+
+  console.log(`[telegram] M: ${userText.substring(0, 80)}`);
+
+  // Handle /integrations command
+  if (userText.startsWith("/integrations")) {
+    await handleIntegrations(chatId, config, toolCtx);
+    return;
+  }
+
+  // Handle /schedules command
+  if (userText.startsWith("/schedules")) {
+    await handleSchedules(chatId, config);
+    return;
+  }
+
+  // Handle /capabilities command
+  if (userText.startsWith("/capabilities")) {
+    await handleCapabilities(chatId, config);
+    return;
+  }
+
+  try {
+    const history = loadHistory(chatId, config.workspace);
+    const augmented = `[chat_id: ${chatId}, user: ${userName}]\n${userText}`;
+    let response = await runAgent(config, toolCtx, history, augmented);
+
+    console.log(`[telegram] Reply (${response.length} chars): ${response.substring(0, 120)}`);
+
+    // Extract and format capability footer
+    let footer = "";
+    const footerMatch = response.match(/\n--- (.+)$/);
+    if (footerMatch) {
+      response = response.replace(/\n--- .+$/, "");
+      footer = `\n\n_\u2014 ${footerMatch[1]}_`;
+    }
+
+    saveHistory(chatId, config.workspace, [
+      ...history,
+      { role: "user", content: userText },
+      { role: "assistant", content: response },
+    ]);
+
+    await sendMessage(config.telegramToken, chatId, response + footer);
+    console.log(`[telegram] Sent to chat ${chatId}`);
+  } catch (err) {
+    const e = err as Error;
+    console.error(`[telegram] Error: ${e.message}`);
+    await sendMessage(config.telegramToken, chatId, "An error occurred. Please try again.");
+  }
+}
+
+export async function sendMessage(token: string, chatId: number, text: string): Promise<void> {
+  if (!token || !chatId) return;
+
+  // Telegram max message length is 4096
+  const chunks = splitMessage(text, 4000);
+  for (const chunk of chunks) {
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: chunk,
+          parse_mode: "Markdown",
+        }),
+      });
+    } catch {
+      // Retry without Markdown if parse fails
+      try {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: chunk }),
+        });
+      } catch { /* give up */ }
+    }
+  }
+}
+
+function splitMessage(text: string, maxLen: number): string[] {
+  if (text.length <= maxLen) return [text];
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLen) {
+      chunks.push(remaining);
+      break;
+    }
+    // Try to split at newline
+    let splitIdx = remaining.lastIndexOf("\n", maxLen);
+    if (splitIdx < maxLen / 2) splitIdx = maxLen;
+    chunks.push(remaining.substring(0, splitIdx));
+    remaining = remaining.substring(splitIdx);
+  }
+  return chunks;
+}
+
+function historyPath(chatId: number, workspace: string): string {
+  return resolve(workspace, "memory", `chat-${chatId}.json`);
+}
+
+function loadHistory(chatId: number, workspace: string): ChatMessage[] {
+  const p = historyPath(chatId, workspace);
+  if (!existsSync(p)) return [];
+  try {
+    const data = JSON.parse(readFileSync(p, "utf-8")) as ChatMessage[];
+    return data.slice(-MAX_HISTORY);
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(chatId: number, workspace: string, messages: ChatMessage[]): void {
+  const p = historyPath(chatId, workspace);
+  mkdirSync(dirname(p), { recursive: true });
+  writeFileSync(p, JSON.stringify(messages.slice(-MAX_HISTORY), null, 2));
+}
+
+/* ── /integrations command ────────────────────────────────────── */
+
+const INTEGRATIONS: Record<string, { name: string; app: string; hint: string }> = {
+  gmail:      { name: "Gmail",           app: "gmail",          hint: "email" },
+  drive:      { name: "Google Drive",    app: "googledrive",    hint: "files" },
+  calendar:   { name: "Google Calendar", app: "googlecalendar", hint: "events" },
+  notion:     { name: "Notion",          app: "notion",         hint: "notes, databases" },
+  github:     { name: "GitHub",          app: "github",         hint: "repos, issues" },
+  slack:      { name: "Slack",           app: "slack",          hint: "messaging" },
+  linear:     { name: "Linear",          app: "linear",         hint: "issues" },
+  trello:     { name: "Trello",          app: "trello",         hint: "boards, cards" },
+  todoist:    { name: "Todoist",         app: "todoist",        hint: "tasks" },
+  sheets:     { name: "Google Sheets",   app: "googlesheets",   hint: "spreadsheets" },
+  dropbox:    { name: "Dropbox",         app: "dropbox",        hint: "files" },
+  whatsapp:   { name: "WhatsApp",        app: "whatsapp",       hint: "messaging" },
+};
+
+const COMPOSIO_API = "https://backend.composio.dev/api/v3";
+
+/**
+ * Fetch active connections as Map<appSlug, accountId>.
+ * Account ID needed for DELETE disconnect.
+ */
+async function getActiveConnections(apiKey: string): Promise<Map<string, string>> {
+  const accounts = await composioFetch(apiKey, "/connected_accounts?status=ACTIVE");
+  const map = new Map<string, string>();
+  for (const a of (accounts.items || [])) {
+    if (a.status === "ACTIVE" && a.toolkit?.slug) {
+      if (!map.has(a.toolkit.slug)) {
+        map.set(a.toolkit.slug, a.id);
+      }
+    }
+  }
+  return map;
+}
+
+async function handleIntegrations(chatId: number, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+  const token = config.telegramToken;
+  const apiKey = config.composioApiKey;
+
+  if (!apiKey) {
+    await sendMessage(token, chatId, "Composio API key is not configured. Set COMPOSIO_API_KEY in .env");
+    return;
+  }
+
+  // Fetch active connections with account IDs
+  let activeConnections: Map<string, string>;
+  try {
+    activeConnections = await getActiveConnections(apiKey);
+  } catch {
+    activeConnections = new Map();
+  }
+
+  // Check if new integrations were connected — reload tools if needed
+  const currentToolApps = new Set(
+    toolCtx.tools.filter((t) => (t as ToolDefinition & { _composio?: boolean })._composio)
+      .map((t) => (t as ToolDefinition & { _app?: string })._app)
+      .filter(Boolean)
+  );
+  const hasNewApps = [...activeConnections.keys()].some((app) => !currentToolApps.has(app));
+  if (hasNewApps) {
+    await toolCtx.reloadComposio();
+    await sendMessage(token, chatId, "New integrations detected — tools reloaded!");
+  }
+
+  const connectedLines: string[] = [];
+  const connectButtons: Array<{ text: string; callback_data: string }> = [];
+  const disconnectButtons: Array<{ text: string; callback_data: string }> = [];
+
+  for (const [key, def] of Object.entries(INTEGRATIONS)) {
+    if (activeConnections.has(def.app)) {
+      connectedLines.push(`\u2705 ${def.name}`);
+      disconnectButtons.push({ text: `\u274C ${def.name}`, callback_data: `int_disconnect:${key}` });
+    } else {
+      connectButtons.push({ text: `${def.name} \u2014 ${def.hint}`, callback_data: `int_connect:${key}` });
+    }
+  }
+
+  let statusText = "*Integrations*\n";
+  if (connectedLines.length > 0) {
+    statusText += `\n${connectedLines.join("\n")}\n`;
+  }
+  if (connectButtons.length > 0) {
+    statusText += "\nTap to connect:";
+  } else if (disconnectButtons.length > 0) {
+    statusText += "\nAll integrations connected!";
+  }
+
+  // Build keyboard: connect buttons (2 per row), then disconnect buttons (2 per row)
+  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+  for (let i = 0; i < connectButtons.length; i += 2) {
+    keyboard.push(connectButtons.slice(i, i + 2));
+  }
+  if (disconnectButtons.length > 0) {
+    for (let i = 0; i < disconnectButtons.length; i += 2) {
+      keyboard.push(disconnectButtons.slice(i, i + 2));
+    }
+  }
+
+  await sendMessageWithButtons(token, chatId, statusText, keyboard);
+}
+
+async function handleIntegrationConnect(chatId: number, key: string, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+  const token = config.telegramToken;
+  const apiKey = config.composioApiKey;
+
+  if (!apiKey) {
+    await sendMessage(token, chatId, "Composio API key is not configured.");
+    return;
+  }
+
+  const integration = INTEGRATIONS[key];
+  if (!integration) {
+    await sendMessage(token, chatId, `Unknown integration: "${key}"`);
+    return;
+  }
+
+  try {
+    await sendMessage(token, chatId, `Connecting ${integration.name}...`);
+
+    // 1. Get or create auth config (filter by toolkit.slug — API may return wrong app)
+    const configRes = await composioFetch(apiKey, `/auth_configs?appName=${integration.app}`);
+    const matchingConfig = (configRes.items || []).find(
+      (c: { toolkit?: { slug?: string } }) => c.toolkit?.slug === integration.app
+    );
+    let authConfigId: string;
+
+    if (matchingConfig) {
+      authConfigId = matchingConfig.id;
+    } else {
+      const created = await composioFetch(apiKey, "/auth_configs", {
+        method: "POST",
+        body: JSON.stringify({ toolkit: { slug: integration.app } }),
+      });
+      authConfigId = created.auth_config?.id ?? created.id;
+    }
+
+    // 2. Create connection → get OAuth redirect URL
+    const entityId = config.composioUserId || "default";
+    const connection = await composioFetch(apiKey, "/connected_accounts", {
+      method: "POST",
+      body: JSON.stringify({
+        auth_config: { id: authConfigId },
+        connection: { entity_id: entityId },
+      }),
+    });
+
+    const redirectUrl = connection.redirect_url || connection.redirect_uri;
+
+    if (redirectUrl) {
+      await sendMessage(token, chatId,
+        `\uD83D\uDD17 *Authorize ${integration.name}:*\n\n${redirectUrl}\n\n` +
+        `Open the link, sign in, and grant access.\nThen send /integrations to verify.`
+      );
+      console.log(`[integrations] ${integration.name} OAuth URL sent to chat ${chatId}`);
+    } else {
+      await sendMessage(token, chatId, `Could not get authorization URL for ${integration.name}. Try again later.`);
+    }
+  } catch (err) {
+    const msg = (err as Error).message;
+    console.error(`[integrations] Connect error: ${msg}`);
+    await sendMessage(token, chatId, `Failed to connect ${integration.name}: ${msg}`);
+  }
+}
+
+async function handleIntegrationDisconnect(chatId: number, key: string, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+  const token = config.telegramToken;
+  const apiKey = config.composioApiKey;
+
+  if (!apiKey) {
+    await sendMessage(token, chatId, "Composio API key is not configured.");
+    return;
+  }
+
+  const integration = INTEGRATIONS[key];
+  if (!integration) {
+    await sendMessage(token, chatId, `Unknown integration: "${key}"`);
+    return;
+  }
+
+  try {
+    // Fetch account ID for this app
+    const activeConnections = await getActiveConnections(apiKey);
+    const accountId = activeConnections.get(integration.app);
+
+    if (!accountId) {
+      await sendMessage(token, chatId, `${integration.name} is not connected.`);
+      return;
+    }
+
+    await sendMessage(token, chatId, `Disconnecting ${integration.name}...`);
+
+    // DELETE the connected account
+    await composioFetch(apiKey, `/connected_accounts/${accountId}`, {
+      method: "DELETE",
+    });
+
+    // Reload tools to remove disconnected integration
+    await toolCtx.reloadComposio();
+
+    await sendMessage(token, chatId, `\u2705 ${integration.name} disconnected. Tools updated.`);
+    console.log(`[integrations] ${integration.name} disconnected for chat ${chatId}`);
+  } catch (err) {
+    const msg = (err as Error).message;
+    console.error(`[integrations] Disconnect error: ${msg}`);
+    await sendMessage(token, chatId, `Failed to disconnect ${integration.name}: ${msg}`);
+  }
+}
+
+async function handleScheduleConfirm(
+  chatId: number,
+  scheduleId: string,
+  approved: boolean,
+  config: AgentConfig,
+  inngestClient?: Inngest,
+): Promise<void> {
+  const action = approved ? "approve" : "reject";
+  console.log(`[scheduler] ${scheduleId} ${action}d by user`);
+
+  if (inngestClient) {
+    try {
+      await inngestClient.send({
+        name: "schedule/confirmed",
+        data: { scheduleId, action },
+      });
+      await sendMessage(
+        config.telegramToken,
+        chatId,
+        approved ? `Approved: ${scheduleId}` : `Rejected: ${scheduleId}`,
+      );
+    } catch (err) {
+      console.error(`[scheduler] Failed to send event: ${(err as Error).message}`);
+      await sendMessage(config.telegramToken, chatId, `Failed to process confirmation.`);
+    }
+  } else {
+    await sendMessage(config.telegramToken, chatId, `Scheduler not available.`);
+  }
+}
+
+async function handleConfirmation(
+  chatId: number,
+  messageId: number | undefined,
+  confirmId: string,
+  approved: boolean,
+  config: AgentConfig,
+  toolCtx: ToolContext,
+): Promise<void> {
+  const pending = pendingConfirmations.get(confirmId);
+  if (!pending) {
+    // Already processed — just remove stale buttons silently
+    if (messageId) {
+      await removeButtons(config.telegramToken, chatId, messageId, "Expired.");
+    }
+    return;
+  }
+
+  pendingConfirmations.delete(confirmId);
+
+  // Remove buttons and update message with result
+  const label = approved ? "Approved" : "Rejected";
+  if (messageId) {
+    await removeButtons(config.telegramToken, chatId, messageId, label);
+  }
+
+  if (!approved) {
+    return;
+  }
+
+  console.log(`[confirm] Approved: ${pending.onApprove.substring(0, 80)}`);
+
+  try {
+    const result = await runAgent(config, toolCtx, [], pending.onApprove);
+    await sendMessage(config.telegramToken, chatId, result);
+  } catch (err) {
+    await sendMessage(config.telegramToken, chatId, `Failed: ${(err as Error).message}`);
+  }
+}
+
+async function removeButtons(token: string, chatId: number, messageId: number, text: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        reply_markup: { inline_keyboard: [] },
+      }),
+    });
+  } catch { /* ignore */ }
+}
+
+async function handleSchedules(chatId: number, config: AgentConfig): Promise<void> {
+  const scheduleConfig = loadScheduleConfig(config.workspace);
+  if (!scheduleConfig || scheduleConfig.schedules.length === 0) {
+    await sendMessage(config.telegramToken, chatId, "No scheduled tasks configured.");
+    return;
+  }
+
+  const lines = scheduleConfig.schedules.map((s) => {
+    const status = s.enabled !== false ? "\u2705" : "\u23F8\uFE0F";
+    // Parse capability name from prefixed schedule ID (e.g. "inbox-agent:inbox-scan")
+    let displayId = s.id;
+    let capLabel = "";
+    if (s.id.includes(":")) {
+      const [capId, schedId] = s.id.split(":", 2);
+      displayId = schedId;
+      // Convert capability ID to display name (e.g. "inbox-agent" -> "Inbox Agent")
+      capLabel = ` (${capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})`;
+    }
+    return `${status} *${displayId}*${capLabel}\n   ${s.description}\n   \`${s.cron}\` (${s.timezone})`;
+  });
+
+  await sendMessage(
+    config.telegramToken,
+    chatId,
+    `*Scheduled Tasks*\n\n${lines.join("\n\n")}`,
+  );
+}
+
+/* ── /capabilities command ────────────────────────────────────── */
+
+async function handleCapabilities(chatId: number, config: AgentConfig): Promise<void> {
+  const capabilities = loadInstalledCapabilities(config.workspace);
+
+  if (capabilities.length === 0) {
+    await sendMessage(
+      config.telegramToken,
+      chatId,
+      "No capabilities installed. Using default single-prompt mode.",
+    );
+    return;
+  }
+
+  // Count enabled schedules per capability
+  const scheduleConfig = loadScheduleConfig(config.workspace);
+  const scheduleCountByCapability: Record<string, number> = {};
+  if (scheduleConfig) {
+    for (const s of scheduleConfig.schedules) {
+      if (s.enabled === false) continue;
+      if (s.id.includes(":")) {
+        const capId = s.id.split(":")[0];
+        scheduleCountByCapability[capId] = (scheduleCountByCapability[capId] || 0) + 1;
+      }
+    }
+  }
+
+  const lines = capabilities.map((capId) => {
+    // Convert capability ID to display name (e.g. "inbox-agent" -> "Inbox Agent")
+    const displayName = capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const schedCount = scheduleCountByCapability[capId] || 0;
+    const schedLabel = schedCount > 0 ? ` \u2014 ${schedCount} schedule${schedCount > 1 ? "s" : ""}` : "";
+    // Check if system-prompt.md exists
+    const promptPath = resolve(config.workspace, "config", "capabilities", capId, "system-prompt.md");
+    const hasPrompt = existsSync(promptPath);
+    const statusIcon = hasPrompt ? "\u2705" : "\u26A0\uFE0F";
+    return `${statusIcon} *${displayName}*${schedLabel}`;
+  });
+
+  await sendMessage(
+    config.telegramToken,
+    chatId,
+    `*Installed Capabilities*\n\n${lines.join("\n")}`,
+  );
+}
+
+export async function sendMessageWithButtons(
+  token: string,
+  chatId: number,
+  text: string,
+  keyboard: Array<Array<{ text: string; callback_data: string }>>,
+): Promise<void> {
+  if (!token || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: keyboard },
+      }),
+    });
+  } catch {
+    // Fallback without markdown
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          reply_markup: { inline_keyboard: keyboard },
+        }),
+      });
+    } catch { /* give up */ }
+  }
+}
+
+async function answerCallbackQuery(token: string, callbackId: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackId }),
+    });
+  } catch { /* best effort */ }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function composioFetch(apiKey: string, path: string, options?: RequestInit): Promise<any> {
+  const res = await fetch(`${COMPOSIO_API}${path}`, {
+    ...options,
+    headers: {
+      "x-api-key": apiKey,
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Composio ${res.status}: ${body.substring(0, 200)}`);
+  }
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+function parseBody(req: IncomingMessage): Promise<TelegramUpdate | null> {
+  return new Promise((resolve) => {
+    let data = "";
+    req.on("data", (chunk: Buffer) => (data += chunk));
+    req.on("end", () => {
+      try { resolve(JSON.parse(data) as TelegramUpdate); }
+      catch { resolve(null); }
+    });
+    req.on("error", () => resolve(null));
+  });
+}
