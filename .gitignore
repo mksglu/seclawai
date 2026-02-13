@@ -28,6 +28,7 @@ Thumbs.db
 # Wrangler
 .wrangler/
 .dev.vars
+wrangler.dev.jsonc
 
 # pnpm
 .pnpm-debug.log

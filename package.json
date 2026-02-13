@@ -2,9 +2,7 @@
   "name": "seclaw",
   "private": true,
   "scripts": {
-    "dev": "turbo dev",
-    "dev:web": "turbo dev --filter=@seclaw/web",
-    "dev:api": "turbo dev --filter=@seclaw/api",
+    "dev": "wrangler dev --config wrangler.dev.jsonc",
     "dev:stripe": "stripe listen --forward-to localhost:8787/api/webhook/stripe",
     "build": "turbo build",
     "deploy": "turbo deploy",

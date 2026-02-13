@@ -124,6 +124,11 @@ function BuyButton({ templateId, label }: { templateId: string; label: string })
   const [showModal, setShowModal] = useState(false);
 
   const handleClick = () => {
+    if (session.error) {
+      // Auth not available — redirect to detail page
+      window.location.href = `/templates/${templateId}`;
+      return;
+    }
     if (session.data?.user) {
       checkout.mutate(templateId, {
         onSuccess: (data) => {
@@ -188,13 +193,28 @@ function LicenseDisplay({ sessionId }: { sessionId: string }) {
     return <p className="text-neutral-500">Loading license...</p>;
   }
 
+  const command = `npx seclaw add ${data.templateId} --key ${data.licenseKey}`;
+
+  const copyCommand = () => {
+    navigator.clipboard.writeText(command);
+  };
+
   return (
     <div>
       <p className="text-xs text-neutral-500 mb-2">{data.templateName}</p>
       <code className="text-green-400 text-lg select-all">{data.licenseKey}</code>
-      <p className="mt-4 text-sm text-neutral-400">
-        npx seclaw add {data.templateId} --key {data.licenseKey}
-      </p>
+      <div
+        className="mt-4 flex items-center gap-2 rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-3 cursor-pointer hover:border-neutral-700 transition"
+        onClick={copyCommand}
+      >
+        <code className="text-sm text-neutral-300 flex-1 select-all">{command}</code>
+        <button className="shrink-0 text-neutral-500 hover:text-green-400 transition" title="Copy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

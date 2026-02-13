@@ -23,9 +23,6 @@ export function Success() {
           <div id="license-display" className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4 font-mono text-sm text-center">
             <p className="text-neutral-500">Loading your license key...</p>
           </div>
-          <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4 font-mono text-sm text-green-400">
-            npx seclaw add template-name --key YOUR_KEY
-          </div>
           <p className="mt-6 text-xs text-neutral-500">
             Also sent to your email. Check spam or{" "}
             <a href="mailto:support@seclawai.com" className="text-green-400 underline">

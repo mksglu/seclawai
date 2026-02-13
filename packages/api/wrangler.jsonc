@@ -1,5 +1,5 @@
 {
-  "name": "seclaw-api",
+  "name": "seclawaicom",
   "main": "src/app.tsx",
   "compatibility_date": "2025-12-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -15,14 +15,14 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "YOUR_DB_NAME",
-      "database_id": "YOUR_DATABASE_ID"
+      "database_name": "seclawaicom",
+      "database_id": "d25d65dd-05d5-4e7c-b920-9b526488732e"
     }
   ],
   "r2_buckets": [
     {
       "binding": "TEMPLATE_BUCKET",
-      "bucket_name": "YOUR_BUCKET_NAME"
+      "bucket_name": "seclaw-templates"
     }
   ],
   "vars": {

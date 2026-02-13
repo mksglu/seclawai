@@ -45,7 +45,7 @@ webhook.post("/stripe", async (c) => {
       `INSERT INTO licenses (id, email, template_id, license_key, stripe_payment_id, user_id, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(licenseId, email, templateId, licenseKey, session.payment_intent, userId || null, expiresAt)
+      .bind(licenseId, email, templateId, licenseKey, session.id, userId || null, expiresAt)
       .run();
 
     // Get template name for email

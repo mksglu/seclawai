@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app.js";
 import { getTemplateContent } from "../lib/r2.js";
-import { generateLicenseKey } from "../lib/license.js";
+import { generateLicenseKey, generateLicenseId } from "../lib/license.js";
+import { createStripeClient } from "../lib/stripe.js";
+import { sendLicenseEmail } from "../lib/email.js";
 
 const templates = new Hono<AppEnv>();
 
@@ -130,10 +132,12 @@ templates.post("/regenerate", async (c) => {
 });
 
 // Lookup license by Stripe session (success page)
+// If webhook hasn't fired yet, fetches session from Stripe API and creates license on the fly
 templates.get("/session/:sessionId", async (c) => {
   const sessionId = c.req.param("sessionId");
 
-  const license = await c.env.DB.prepare(
+  // 1. Check DB first (webhook may have already created it)
+  const existing = await c.env.DB.prepare(
     "SELECT l.license_key, l.template_id, l.expires_at, t.name as template_name FROM licenses l JOIN templates t ON l.template_id = t.id WHERE l.stripe_payment_id = ?"
   )
     .bind(sessionId)
@@ -144,16 +148,82 @@ templates.get("/session/:sessionId", async (c) => {
       template_name: string;
     }>();
 
-  if (!license) {
-    return c.json({ error: "Session not found or payment pending" }, 404);
+  if (existing) {
+    return c.json({
+      licenseKey: existing.license_key,
+      templateId: existing.template_id,
+      templateName: existing.template_name,
+      expiresAt: existing.expires_at,
+    });
   }
 
-  return c.json({
-    licenseKey: license.license_key,
-    templateId: license.template_id,
-    templateName: license.template_name,
-    expiresAt: license.expires_at,
-  });
+  // 2. Not in DB — query Stripe API directly
+  try {
+    const stripe = createStripeClient(c.env.STRIPE_SECRET_KEY);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== "paid") {
+      return c.json({ error: "Payment not completed" }, 402);
+    }
+
+    const templateId = session.metadata?.templateId;
+    const userId = session.metadata?.userId;
+    const email = session.metadata?.email || session.customer_details?.email;
+
+    if (!templateId || !email) {
+      return c.json({ error: "Missing metadata in Stripe session" }, 400);
+    }
+
+    // Prevent duplicate: re-check DB (race condition guard)
+    const recheck = await c.env.DB.prepare(
+      "SELECT license_key FROM licenses WHERE stripe_payment_id = ?"
+    ).bind(sessionId).first<{ license_key: string }>();
+
+    if (recheck) {
+      const tmpl = await c.env.DB.prepare("SELECT name FROM templates WHERE id = ?")
+        .bind(templateId).first<{ name: string }>();
+      return c.json({
+        licenseKey: recheck.license_key,
+        templateId,
+        templateName: tmpl?.name || templateId,
+        expiresAt: null,
+      });
+    }
+
+    // 3. Create the license (same logic as webhook)
+    const licenseId = generateLicenseId();
+    const licenseKey = generateLicenseKey();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO licenses (id, email, template_id, license_key, stripe_payment_id, user_id, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(licenseId, email, templateId, licenseKey, sessionId, userId || null, expiresAt)
+      .run();
+
+    const template = await c.env.DB.prepare("SELECT name FROM templates WHERE id = ?")
+      .bind(templateId).first<{ name: string }>();
+
+    // Send license email
+    if (c.env.RESEND_API_KEY && template) {
+      try {
+        await sendLicenseEmail(c.env.RESEND_API_KEY, email, template.name, licenseKey, templateId, expiresAt);
+      } catch (emailErr) {
+        console.error("Failed to send license email:", emailErr);
+      }
+    }
+
+    return c.json({
+      licenseKey,
+      templateId,
+      templateName: template?.name || templateId,
+      expiresAt,
+    });
+  } catch (err) {
+    console.error("Stripe session lookup failed:", err);
+    return c.json({ error: "Session not found or payment pending" }, 404);
+  }
 });
 
 export { templates };
