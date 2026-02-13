@@ -20,7 +20,6 @@ export async function scaffoldProject(
 
   await writeEnv(targetDir, answers);
   await writeDockerCompose(targetDir, ws);
-  await writeTunnelScript(targetDir, ws);
   await writePermissions(targetDir);
   await writeGitignore(targetDir);
   await writeDockerignore(targetDir);
@@ -131,23 +130,12 @@ async function writeDockerCompose(dir: string, workspacePath = "./shared") {
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "/tunnel-start.sh"]
-    volumes:
-      - ${workspacePath}:/workspace:rw
-      - ./tunnel-start.sh:/tunnel-start.sh:ro
-    env_file:
-      - .env
+    command: ["tunnel", "--no-autoupdate", "--url", "http://agent:3000"]
     networks:
       - agent-net
     depends_on:
       agent:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://agent:3000/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
 
   desktop-commander:
     build:
@@ -179,45 +167,6 @@ networks:
 `;
 
   await writeFile(join(dir, "docker-compose.yml"), content);
-}
-
-/**
- * Write the tunnel startup script that auto-updates Telegram webhook
- * when the Cloudflare quick tunnel URL changes on restart.
- */
-async function writeTunnelScript(dir: string, _workspacePath = "./shared") {
-  const script = `#!/bin/sh
-# Runs cloudflared and auto-updates Telegram webhook when tunnel URL changes.
-# This solves the "webhook points to old tunnel" problem on container restart.
-
-cloudflared tunnel --no-autoupdate --url http://agent:3000 2>&1 | while IFS= read -r line; do
-  # Forward all output to stderr so docker logs still works
-  printf '%s\\n' "$line" >&2
-
-  # Detect tunnel URL in log output
-  case "$line" in
-    *https://*trycloudflare.com*)
-      # Extract URL using shell-only (no grep dependency)
-      URL=$(echo "$line" | sed -n 's|.*\\(https://[a-z0-9-]*\\.trycloudflare\\.com\\).*|\\1|p')
-      if [ -z "$URL" ]; then continue; fi
-
-      # Write to shared volume so agent/CLI can read it
-      echo "$URL" > /workspace/.tunnel-url
-
-      # Auto-update Telegram webhook if bot token is available
-      if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-        wget -q -O /dev/null \\
-          --post-data='{"url":"'"$URL"'/webhook","allowed_updates":["message","callback_query"]}' \\
-          --header='Content-Type: application/json' \\
-          "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" 2>/dev/null && \\
-          printf '[tunnel] Webhook updated: %s\\n' "$URL" >&2 || \\
-          printf '[tunnel] Webhook update failed\\n' >&2
-      fi
-      ;;
-  esac
-done
-`;
-  await writeFile(join(dir, "tunnel-start.sh"), script, { mode: 0o755 });
 }
 
 /**

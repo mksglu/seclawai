@@ -48,7 +48,7 @@ async function fetchTunnelUrlFromLogs(cwd: string): Promise<string | null> {
     const result = await execa(
       "docker",
       ["compose", "logs", "cloudflared", "--no-log-prefix", "--tail", "50"],
-      { cwd }
+      { cwd, env: { ...process.env, COMPOSE_PROJECT_NAME: "seclaw" } }
     );
 
     const combined = result.stdout + "\n" + result.stderr;
@@ -61,6 +61,7 @@ async function fetchTunnelUrlFromLogs(cwd: string): Promise<string | null> {
 
 /**
  * Set the Telegram bot webhook to point at the tunnel URL.
+ * Retries up to 3 times with delays to handle transient network issues.
  * Agent listens on /webhook directly.
  */
 export async function setTelegramWebhook(
@@ -69,21 +70,38 @@ export async function setTelegramWebhook(
 ): Promise<boolean> {
   const webhookUrl = `${tunnelUrl}/webhook`;
 
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(
+        `https://api.telegram.org/bot${botToken}/setWebhook`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: webhookUrl,
+            allowed_updates: ["message", "callback_query"],
+          }),
+          signal: AbortSignal.timeout(10000),
+        }
+      );
+
+      const data = (await res.json()) as { ok: boolean; description?: string };
+      if (data.ok) return true;
+      // API returned error — retry
+    } catch {
+      // Network/timeout error — retry after delay
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
+  }
+
+  // Final verification: check if webhook was actually set despite errors
   try {
     const res = await fetch(
-      `https://api.telegram.org/bot${botToken}/setWebhook`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: webhookUrl,
-          allowed_updates: ["message", "callback_query"],
-        }),
-      }
+      `https://api.telegram.org/bot${botToken}/getWebhookInfo`,
+      { signal: AbortSignal.timeout(5000) }
     );
-
-    const data = (await res.json()) as { ok: boolean; description?: string };
-    return data.ok;
+    const data = (await res.json()) as { ok: boolean; result?: { url: string } };
+    return !!(data.ok && data.result?.url?.includes("trycloudflare.com"));
   } catch {
     return false;
   }

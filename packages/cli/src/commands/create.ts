@@ -150,15 +150,24 @@ export async function create(directory: string) {
     s.stop("Tunnel starting — check with: npx seclaw status");
   }
 
-  // 7. Set Telegram webhook
+  // 7. Set Telegram webhook (with retry — tunnel needs time to propagate)
   if (tunnelUrl && answers.telegramToken) {
     s.start("Setting up Telegram webhook...");
-    const webhookUrl = `${tunnelUrl}/webhook`;
+    // Small delay to let tunnel fully propagate to Cloudflare's edge
+    await new Promise((r) => setTimeout(r, 3000));
     const ok = await setTelegramWebhook(answers.telegramToken, tunnelUrl);
     if (ok) {
       s.stop("Telegram webhook configured!");
     } else {
-      s.stop(`Webhook URL: ${pc.cyan(webhookUrl)}`);
+      s.stop("Webhook not set — will retry...");
+      // Second attempt after longer delay
+      s.start("Retrying webhook...");
+      await new Promise((r) => setTimeout(r, 5000));
+      const retry = await setTelegramWebhook(answers.telegramToken, tunnelUrl);
+      s.stop(retry
+        ? "Telegram webhook configured!"
+        : `Run ${pc.cyan("npx seclaw doctor")} to fix webhook.`
+      );
     }
   }
 

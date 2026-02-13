@@ -178,7 +178,13 @@ export async function collectSetupAnswers(targetDir?: string): Promise<SetupAnsw
     },
   });
   if (p.isCancel(workspaceInput)) process.exit(0);
-  const workspacePath = (workspaceInput as string) || defaultWorkspace;
+  let workspacePath = (workspaceInput as string) || defaultWorkspace;
+  // Expand ~ to home directory (shell doesn't expand it in Node.js)
+  if (workspacePath.startsWith("~/")) {
+    workspacePath = resolve(homedir(), workspacePath.slice(2));
+  } else if (workspacePath === "~") {
+    workspacePath = homedir();
+  }
 
   // --- Template ---
   const templateOptions: { value: string; label: string; hint: string }[] = [
