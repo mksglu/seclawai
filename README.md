@@ -120,27 +120,21 @@ Every guardrail is enforced at the Docker runtime level — not in the system pr
 | **Sales Agent** | Premium | Buying signal detection, lead scoring, outreach drafts |
 | **6-Agent Company** | Premium | 6 coordinated agents with standup, memory, self-correction |
 
-### Capability Stacking
+### One Token, All Your Templates
 
-Templates are capabilities, not personality swaps. Install multiple on a single agent — one Docker instance, shared memory:
+When you purchase a template, you get a single token that never expires. Every future purchase is added to the same token — no separate keys, no expiry, re-download anytime.
 
 ```bash
-npx seclaw add inbox-agent --key KEY1
-npx seclaw add research-agent --key KEY2
-npx seclaw capabilities               # List installed
+# Free templates — no token needed
+npx seclaw add productivity-agent
+
+# Paid templates — use your token
+npx seclaw add inbox-agent --key YOUR_TOKEN
+npx seclaw add research-agent --key YOUR_TOKEN   # same token
+npx seclaw capabilities                           # List installed
 ```
 
 Schedules from all capabilities merge automatically. The agent knows which capability handles which task.
-
-### Activating Templates
-
-```bash
-# Free templates
-npx seclaw add productivity-agent
-
-# Paid templates
-npx seclaw add content-agent --key YOUR_LICENSE_KEY
-```
 
 Browse and purchase at [seclawai.com/templates](https://seclawai.com/templates).
 
@@ -209,7 +203,7 @@ npx seclaw integrations    # CLI: connect/disconnect
 
 ```bash
 npx seclaw                           # Interactive setup wizard
-npx seclaw add <template> --key KEY  # Activate a paid template
+npx seclaw add <template> --key TOKEN # Download a purchased template
 npx seclaw templates                 # List all available templates
 npx seclaw capabilities              # List/remove installed capabilities
 npx seclaw integrations              # Connect/disconnect services
@@ -246,15 +240,17 @@ Your only real cost is the LLM API. Everything else is free — Docker, Inngest,
 
 ```bash
 git clone https://github.com/seclaw/seclaw.git && cd seclaw
-pnpm install && pnpm dev
+pnpm install          # auto-builds CLI
+npx seclaw            # local version, always up-to-date
 ```
 
 | Package | Port | What |
 |---------|------|------|
 | `packages/web` | 8787 | Landing page (Hono + JSX + Tailwind) |
-| `packages/api` | 8788 | License API (Hono + D1 + Stripe) |
+| `packages/api` | 8788 | Token API (Hono + D1 + Stripe) |
 | `packages/cli` | — | CLI tool (`npx seclaw`) |
 | `packages/runtime` | — | Agent source (TypeScript → agent.js) |
+| `packages/templates` | — | Template source (free + paid) |
 
 ---
 
