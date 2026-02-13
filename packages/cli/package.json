@@ -1,0 +1,51 @@
+{
+  "name": "seclaw",
+  "version": "0.1.0",
+  "description": "Secure autonomous AI agents in 60 seconds",
+  "type": "module",
+  "bin": {
+    "seclaw": "dist/cli.js"
+  },
+  "scripts": {
+    "prebuild": "cd ../runtime && npx tsup agent.ts --format esm --target es2022 --external @modelcontextprotocol/sdk --no-splitting && cd ../cli",
+    "dev": "tsup src/cli.ts --watch --format esm",
+    "build": "tsup src/cli.ts --format esm --dts --clean && cp -r templates/free dist/templates/free && mkdir -p dist/runtime && cp ../runtime/dist/agent.js dist/runtime/agent.js && cp runtime/Dockerfile dist/runtime/Dockerfile && cp runtime/package.json dist/runtime/package.json",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.0",
+    "commander": "^13.0.0",
+    "execa": "^9.5.0",
+    "picocolors": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "ai-agent",
+    "autonomous",
+    "composio",
+    "mcp",
+    "secure",
+    "self-hosted",
+    "telegram"
+  ],
+  "author": "Mert Koseoglu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mksglu/seclaw.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/mksglu/seclaw#readme",
+  "bugs": "https://github.com/mksglu/seclaw/issues",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

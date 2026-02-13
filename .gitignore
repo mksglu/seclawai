@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Turbo
+.turbo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Wrangler
+.wrangler/
+.dev.vars
+
+# pnpm
+.pnpm-debug.log
+
+# Playwright MCP
+.playwright-mcp/
+
+# Claude
+.claude/
+
+# Test output
+coverage/
+
+# Internal docs
+docs/
+
+# CLI templates and runtime (managed locally, not in git)
+packages/cli/templates/
+packages/cli/runtime/

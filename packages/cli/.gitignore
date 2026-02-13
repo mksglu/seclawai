@@ -1,0 +1,10 @@
+# Build output
+dist/
+
+# Templates and runtime (copied into dist during build, not tracked in git)
+templates/
+runtime/
+
+# npm pack artifacts
+*.tgz
+package/
