@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 
-const API_URL = process.env.SECLAW_API || "https://api.seclawai.com";
+const API_URL = process.env.SECLAW_API || "https://seclawai.com";
 
 const FREE_TEMPLATES = ["productivity-agent", "data-analyst"];
 
