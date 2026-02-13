@@ -142,15 +142,20 @@ export async function runAgent(
     try {
       const hasTools = tools.length > 0;
 
-      response = await client.chat.completions.create({
+      const params: Record<string, unknown> = {
         model,
-        messages: messages as OpenAI.ChatCompletionMessageParam[],
-        tools: hasTools ? tools as OpenAI.ChatCompletionTool[] : undefined,
+        messages,
+        tools: hasTools ? tools : undefined,
         temperature: 0.7,
         max_tokens: 2048,
-        // @ts-expect-error OpenRouter extended params — disable thinking for faster responses
-        reasoning: { effort: "none" },
-      });
+      };
+
+      // OpenRouter supports reasoning param to disable thinking for faster responses
+      if (config.llmProvider === "openrouter") {
+        params.reasoning = { effort: "none" };
+      }
+
+      response = await client.chat.completions.create(params as unknown as OpenAI.ChatCompletionCreateParamsNonStreaming);
     } catch (err) {
       const e = err as Error & { status?: number; error?: unknown; code?: string; body?: unknown; headers?: unknown };
       console.error(`[llm] API error: status=${e.status || "?"} code=${e.code || "?"} message=${e.message}`);
