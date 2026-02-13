@@ -26,10 +26,22 @@ function GoogleIcon() {
 
 // --- Hooks ---
 
+interface SessionData {
+  user: { id: string; name: string; email: string; image: string | null };
+  session: { id: string; expiresAt: string };
+}
+
 function useSession() {
-  const { data, isPending, error } = authClient.useSession();
+  const { data, isPending, error } = useQuery<SessionData | null>({
+    queryKey: ["session"],
+    queryFn: async (): Promise<SessionData | null> => {
+      const res = await fetch(API + "/api/auth/get-session", { credentials: "include" });
+      const json = await res.json() as SessionData | null;
+      return json?.user ? json : null;
+    },
+  });
   return {
-    data: data?.user ? data : null,
+    data: data ?? null,
     isPending,
     error,
   };
