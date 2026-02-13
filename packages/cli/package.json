@@ -25,7 +25,8 @@
     "typescript": "^5.7.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/templates/paid"
   ],
   "keywords": [
     "ai-agent",
@@ -39,11 +40,11 @@
   "author": "Mert Koseoglu",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mksglu/seclaw.git",
+    "url": "git+https://github.com/mksglu/seclawai.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/mksglu/seclaw#readme",
-  "bugs": "https://github.com/mksglu/seclaw/issues",
+  "homepage": "https://seclawai.com",
+  "bugs": "https://github.com/mksglu/seclawai/issues",
   "engines": {
     "node": ">=18.0.0"
   },
