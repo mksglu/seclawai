@@ -26,6 +26,6 @@ export function getAuth(env: Bindings) {
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
     },
-    trustedOrigins: [env.CORS_ORIGIN, "http://localhost:8788"],
+    trustedOrigins: [env.CORS_ORIGIN, "http://localhost:8788", "http://localhost:8787", "http://localhost:5173"],
   });
 }

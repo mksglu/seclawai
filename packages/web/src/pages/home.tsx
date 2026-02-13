@@ -11,46 +11,38 @@ export function Home() {
   return (
     <div>
       {/* Nav */}
-      <nav class="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
-        <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" class="font-mono text-sm font-bold text-white">
+      <nav className="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <a href="/" className="font-mono text-sm font-bold text-white">
             seclaw
           </a>
-          <div class="flex items-center gap-6">
+          <div className="flex items-center gap-6">
             <a
               href="#architecture"
-              class="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
+              className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
             >
               Stack
             </a>
             <a
               href="/templates"
-              class="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
+              className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
             >
               Templates
             </a>
             <a
               href="/docs"
-              class="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
+              className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
             >
               Docs
             </a>
             <a
               href="https://github.com/seclaw/seclaw"
-              class="text-sm text-neutral-400 transition hover:text-white"
+              className="text-sm text-neutral-400 transition hover:text-white"
               target="_blank"
             >
               GitHub
             </a>
-            <span id="nav-auth">
-              <button
-                id="nav-login-btn"
-                class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
-                onclick="document.getElementById('auth-modal').style.display='flex';document.getElementById('auth-modal').classList.remove('hidden')"
-              >
-                Buy
-              </button>
-            </span>
+            <span id="nav-auth" />
           </div>
         </div>
       </nav>
@@ -66,32 +58,32 @@ export function Home() {
       <Pricing />
 
       {/* Footer */}
-      <footer class="border-t border-neutral-800 px-6 py-12 lg:px-8">
-        <div class="mx-auto max-w-5xl">
-          <div class="flex flex-col items-center justify-between gap-6 sm:flex-row">
+      <footer className="border-t border-neutral-800 px-6 py-12 lg:px-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
             <div>
-              <p class="font-mono text-sm font-bold text-white">seclaw</p>
-              <p class="mt-1 text-xs text-neutral-500">
+              <p className="font-mono text-sm font-bold text-white">seclaw</p>
+              <p className="mt-1 text-xs text-neutral-500">
                 Open source. Self-hosted. Your data stays yours.
               </p>
             </div>
-            <div class="flex items-center gap-6">
+            <div className="flex items-center gap-6">
               <a
                 href="https://github.com/seclaw/seclaw"
-                class="text-sm text-neutral-400 transition hover:text-white"
+                className="text-sm text-neutral-400 transition hover:text-white"
                 target="_blank"
               >
                 GitHub
               </a>
               <a
                 href="/docs"
-                class="text-sm text-neutral-400 transition hover:text-white"
+                className="text-sm text-neutral-400 transition hover:text-white"
               >
                 Docs
               </a>
               <a
                 href="/templates"
-                class="text-sm text-neutral-400 transition hover:text-white"
+                className="text-sm text-neutral-400 transition hover:text-white"
               >
                 Templates
               </a>

@@ -56,34 +56,34 @@ export function Security() {
   ];
 
   return (
-    <section class="px-6 py-24 lg:px-8">
-      <div class="mx-auto max-w-5xl">
-        <p class="text-center text-sm font-medium uppercase tracking-wider text-green-400">
+    <section className="px-6 py-24 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <p className="text-center text-sm font-medium uppercase tracking-wider text-green-400">
           Security model
         </p>
-        <h2 class="mt-4 text-center text-3xl font-bold text-white sm:text-4xl">
-          Hard guardrails, <span class="text-green-400">not suggestions</span>
+        <h2 className="mt-4 text-center text-3xl font-bold text-white sm:text-4xl">
+          Hard guardrails, <span className="text-green-400">not suggestions</span>
         </h2>
-        <p class="mx-auto mt-4 max-w-2xl text-center text-lg text-neutral-400">
+        <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-neutral-400">
           OpenClaw enforces rules in the system prompt. We enforce them in Docker.
           One can be jailbroken. The other can't.
         </p>
 
-        <div class="mt-16 grid gap-8 lg:grid-cols-2">
+        <div className="mt-16 grid gap-8 lg:grid-cols-2">
           {/* Can't do */}
-          <div class="rounded-xl border border-red-500/20 bg-red-500/5 p-8">
-            <h3 class="text-lg font-semibold text-red-400">
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-8">
+            <h3 className="text-lg font-semibold text-red-400">
               Your agent can't:
             </h3>
-            <ul class="mt-4 space-y-4">
+            <ul className="mt-4 space-y-4">
               {guardrails.map((item) => (
                 <li>
-                  <div class="flex items-start gap-3">
-                    <span class="mt-0.5 text-red-400">&#10005;</span>
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-red-400">&#10005;</span>
                     <div>
-                      <p class="text-sm font-medium text-neutral-200">{item.title}</p>
-                      <p class="mt-0.5 text-xs text-neutral-500">{item.detail}</p>
-                      <code class="mt-1 inline-block text-xs text-red-400/60">{item.tech}</code>
+                      <p className="text-sm font-medium text-neutral-200">{item.title}</p>
+                      <p className="mt-0.5 text-xs text-neutral-500">{item.detail}</p>
+                      <code className="mt-1 inline-block text-xs text-red-400/60">{item.tech}</code>
                     </div>
                   </div>
                 </li>
@@ -92,20 +92,20 @@ export function Security() {
           </div>
 
           {/* Can do */}
-          <div class="rounded-xl border border-green-500/20 bg-green-500/5 p-8">
-            <h3 class="text-lg font-semibold text-green-400">
+          <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-8">
+            <h3 className="text-lg font-semibold text-green-400">
               But it can still:
             </h3>
-            <ul class="mt-4 space-y-3">
+            <ul className="mt-4 space-y-3">
               {capabilities.map((item) => (
-                <li class="flex items-start gap-3 text-neutral-300">
-                  <span class="mt-0.5 text-green-400">&#10003;</span>
-                  <span class="text-sm">{item}</span>
+                <li className="flex items-start gap-3 text-neutral-300">
+                  <span className="mt-0.5 text-green-400">&#10003;</span>
+                  <span className="text-sm">{item}</span>
                 </li>
               ))}
             </ul>
-            <div class="mt-6 rounded-lg bg-green-500/10 px-4 py-3">
-              <p class="text-xs text-green-400/80">
+            <div className="mt-6 rounded-lg bg-green-500/10 px-4 py-3">
+              <p className="text-xs text-green-400/80">
                 The goal: maximum capability within minimum attack surface.
                 Your agent does real work — it just can't escape its sandbox.
               </p>
@@ -114,28 +114,28 @@ export function Security() {
         </div>
 
         {/* Comparison table */}
-        <div class="mt-16">
-          <h3 class="text-center text-xl font-semibold text-white">
+        <div className="mt-16">
+          <h3 className="text-center text-xl font-semibold text-white">
             Side-by-side comparison
           </h3>
-          <p class="mt-2 text-center text-sm text-neutral-500">
+          <p className="mt-2 text-center text-sm text-neutral-500">
             Every row is a real security boundary. Green means it exists. Red means it doesn't.
           </p>
-          <div class="mt-8 overflow-hidden rounded-xl border border-neutral-800">
-            <table class="w-full text-left text-sm">
-              <thead class="border-b border-neutral-800 bg-neutral-900">
+          <div className="mt-8 overflow-hidden rounded-xl border border-neutral-800">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-neutral-800 bg-neutral-900">
                 <tr>
-                  <th class="px-6 py-4 font-medium text-neutral-400">Security Boundary</th>
-                  <th class="px-6 py-4 font-medium text-red-400">OpenClaw</th>
-                  <th class="px-6 py-4 font-medium text-green-400">seclaw</th>
+                  <th className="px-6 py-4 font-medium text-neutral-400">Security Boundary</th>
+                  <th className="px-6 py-4 font-medium text-red-400">OpenClaw</th>
+                  <th className="px-6 py-4 font-medium text-green-400">seclaw</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-neutral-800">
+              <tbody className="divide-y divide-neutral-800">
                 {comparison.map((row) => (
-                  <tr class="hover:bg-neutral-900/50">
-                    <td class="px-6 py-3 text-white">{row.feature}</td>
-                    <td class="px-6 py-3 text-sm text-red-400/80">{row.openclaw}</td>
-                    <td class="px-6 py-3 text-sm text-green-400">{row.ours}</td>
+                  <tr className="hover:bg-neutral-900/50">
+                    <td className="px-6 py-3 text-white">{row.feature}</td>
+                    <td className="px-6 py-3 text-sm text-red-400/80">{row.openclaw}</td>
+                    <td className="px-6 py-3 text-sm text-green-400">{row.ours}</td>
                   </tr>
                 ))}
               </tbody>

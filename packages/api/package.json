@@ -18,11 +18,15 @@
     "drizzle-orm": "^0.45.1",
     "hono": "^4.7.0",
     "nanoid": "^5.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "resend": "^6.9.2",
     "stripe": "^17.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "typescript": "^5.7.0",
     "wrangler": "^3.100.0"
   }

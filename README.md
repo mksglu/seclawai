@@ -4,14 +4,14 @@
 
 <p align="center">
   Secure autonomous AI agents in 60 seconds.<br />
-  The OpenClaw alternative that doesn't compromise your security.
+  The OpenClaw alternative with hard guardrails.
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#templates">Templates</a> &middot;
+  <a href="#architecture">Architecture</a> &middot;
   <a href="#security">Security</a> &middot;
-  <a href="#pricing">Pricing</a>
+  <a href="#templates">Templates</a>
 </p>
 
 ---
@@ -20,15 +20,13 @@
 npx seclaw
 ```
 
-One command. Pick your LLM, enter your Telegram token, choose a template. Your agent is live in 60 seconds.
+One command. Pick your LLM, enter your Telegram token, choose a template. Agent live in 60 seconds.
 
 ---
 
 ## Why seclaw?
 
 OpenClaw proved the demand — 68K+ GitHub stars, 600K people watched the tutorial. But it ships with zero container isolation: API keys exposed to every MCP container, your home directory mounted to root-privileged processes, port 5678 open to the internet with no auth.
-
-The #1 reply to the viral tweet? *"I couldn't build it myself."*
 
 seclaw fixes both problems. Same autonomous agent capabilities — with Docker-level security enforced at runtime, not in the system prompt. One can be jailbroken. The other can't.
 
@@ -80,53 +78,6 @@ npx seclaw doctor    # Auto-diagnose & fix issues
 
 ---
 
-## Templates
-
-17 agent templates. One-time purchase. Self-hosted. No subscriptions. Your data stays on your machine.
-
-| Template | Price | Who it's for | What it does |
-|----------|-------|-------------|-------------|
-| **Productivity Agent** | Free | Founders | Morning reports, task management, Telegram assistant |
-| **Data Analyst** | Free | Analysts | CSV/JSON analysis, visualizations, automated reports |
-| **Inbox Agent** | $19 | Everyone | Gmail categorization (urgent/action/FYI), Telegram digest |
-| **Reddit & HN Digest** | $19 | Developers | Daily curated digest from Reddit + Hacker News |
-| **YouTube Digest** | $19 | Everyone | Morning summary of new videos from favorite channels |
-| **Health Tracker** | $29 | Health-conscious | Food-symptom tracking, weekly correlation analysis |
-| **Earnings Tracker** | $29 | Investors | Tech/AI earnings reports with beat/miss analysis |
-| **Research Agent** | $39 | Product Teams | Multi-source competitor monitoring (X, HN, Reddit, RSS) |
-| **Knowledge Base** | $39 | Researchers | Personal knowledge management from URLs, articles, tweets |
-| **Family Calendar** | $39 | Families | Household coordination, calendar aggregation, grocery lists |
-| **Content Agent** | $49 | Creators | Trending topic research, draft in your voice, post with approval |
-| **Personal CRM** | $49 | Networkers | Contact auto-discovery from email, meeting briefings, follow-ups |
-| **YouTube Creator** | $69 | YouTubers | Breaking news scouting, video idea pitches, full outlines |
-| **DevOps Agent** | $79 | Engineers | Health checks every 15min, auto-restart, security audits |
-| **Customer Service** | $79 | Businesses | Gmail inquiry monitoring, KB-backed replies, approval gates |
-| **Sales Agent** | $79 | Sales Teams | Buying signal detection, lead scoring, outreach drafts |
-| **6-Agent Company** | $149 | AI Enthusiasts | 6 coordinated agents with standup, memory, self-correction |
-
-### Capability Stacking
-
-Templates are capabilities, not personality swaps. Install multiple templates on a single agent — one Docker instance, one personality, shared memory:
-
-```bash
-npx seclaw add inbox-agent --key KEY1
-npx seclaw add research-agent --key KEY2
-npx seclaw capabilities               # List installed capabilities
-```
-
-Schedules from all capabilities merge automatically. The agent knows which capability handles which task.
-
-### Buying & Activating
-
-```bash
-# 1. Purchase at https://seclawai.com/templates
-# 2. Activate:
-npx seclaw add content-agent --key YOUR_LICENSE_KEY
-# 3. Done — scheduled tasks start automatically
-```
-
----
-
 ## Security
 
 Every guardrail is enforced at the Docker runtime level — not in the system prompt.
@@ -142,6 +93,56 @@ Every guardrail is enforced at the Docker runtime level — not in the system pr
 | Resource limits | None (infinite) | 512MB / 1 CPU per container |
 | Filesystem mutability | Full read/write | `read_only: true` + tmpfs |
 | Setup time | 30+ minutes | 60 seconds via CLI |
+
+---
+
+## Templates
+
+17 agent templates. Self-hosted. No subscriptions. Your data stays on your machine.
+
+| Template | Tier | What it does |
+|----------|------|-------------|
+| **Productivity Agent** | Free | Morning reports, task management, Telegram assistant |
+| **Data Analyst** | Free | CSV/JSON analysis, visualizations, automated reports |
+| **Inbox Agent** | Pro | Gmail categorization (urgent/action/FYI), Telegram digest |
+| **Reddit & HN Digest** | Pro | Daily curated digest from Reddit + Hacker News |
+| **YouTube Digest** | Pro | Morning summary of new videos from favorite channels |
+| **Health Tracker** | Pro | Food-symptom tracking, weekly correlation analysis |
+| **Earnings Tracker** | Pro | Tech/AI earnings reports with beat/miss analysis |
+| **Research Agent** | Pro | Multi-source competitor monitoring (X, HN, Reddit, RSS) |
+| **Knowledge Base** | Pro | Personal knowledge management from URLs, articles, tweets |
+| **Family Calendar** | Pro | Household coordination, calendar aggregation, grocery lists |
+| **Content Agent** | Premium | Trending topic research, draft in your voice, post with approval |
+| **Personal CRM** | Premium | Contact auto-discovery from email, meeting briefings, follow-ups |
+| **YouTube Creator** | Premium | Breaking news scouting, video idea pitches, full outlines |
+| **DevOps Agent** | Premium | Health checks every 15min, auto-restart, security audits |
+| **Customer Service** | Premium | Gmail inquiry monitoring, KB-backed replies, approval gates |
+| **Sales Agent** | Premium | Buying signal detection, lead scoring, outreach drafts |
+| **6-Agent Company** | Premium | 6 coordinated agents with standup, memory, self-correction |
+
+### Capability Stacking
+
+Templates are capabilities, not personality swaps. Install multiple on a single agent — one Docker instance, shared memory:
+
+```bash
+npx seclaw add inbox-agent --key KEY1
+npx seclaw add research-agent --key KEY2
+npx seclaw capabilities               # List installed
+```
+
+Schedules from all capabilities merge automatically. The agent knows which capability handles which task.
+
+### Activating Templates
+
+```bash
+# Free templates
+npx seclaw add productivity-agent
+
+# Paid templates
+npx seclaw add content-agent --key YOUR_LICENSE_KEY
+```
+
+Browse and purchase at [seclawai.com/templates](https://seclawai.com/templates).
 
 ---
 
@@ -175,29 +176,6 @@ npx seclaw integrations    # CLI: connect/disconnect
 
 ---
 
-## Pricing
-
-### Templates: One-Time Purchase
-
-| Tier | Price | Templates |
-|------|-------|-----------|
-| Free | $0 | Productivity Agent, Data Analyst |
-| Entry | $19 | Inbox, Reddit & HN Digest, YouTube Digest |
-| Mid | $29-49 | Health Tracker, Earnings Tracker, Research, Knowledge Base, Family Calendar, Content, Personal CRM |
-| Pro | $69-149 | YouTube Creator, DevOps, Customer Service, Sales, 6-Agent Company |
-
-### Running Cost: LLM API Only
-
-Everything else is free — Docker, Inngest, Cloudflare Tunnel, Telegram, Composio free tier.
-
-| Usage | Model | Monthly |
-|-------|-------|---------|
-| Light | Haiku 4.5 | ~$6/mo |
-| Normal | Smart routing (Haiku + Sonnet) | ~$15-30/mo |
-| Heavy | Opus 4.6 | ~$100+/mo |
-
----
-
 ## CLI Reference
 
 ```bash
@@ -220,6 +198,18 @@ npx seclaw upgrade                   # Pull latest images & restart
 | `/integrations` | Connect/disconnect Composio services |
 | `/capabilities` | Show installed capabilities + schedule counts |
 | Any message | Agent responds with LLM + tools |
+
+---
+
+## Running Cost
+
+Your only real cost is the LLM API. Everything else is free — Docker, Inngest, Cloudflare Tunnel, Telegram, Composio free tier.
+
+| Usage | Model | Monthly |
+|-------|-------|---------|
+| Light | Haiku 4.5 | ~$6/mo |
+| Normal | Smart routing (Haiku + Sonnet) | ~$15-30/mo |
+| Heavy | Opus 4.6 | ~$100+/mo |
 
 ---
 

@@ -4,7 +4,7 @@ import { checkout } from "./routes/checkout.js";
 import { webhook } from "./routes/webhook.js";
 import { templates } from "./routes/templates.js";
 import { getAuth, type AuthUser } from "./auth.js";
-import { renderer } from "../../web/src/components/layout.js";
+import { renderPage } from "../../web/src/components/layout.js";
 import { Home } from "../../web/src/pages/home.js";
 import { Templates as TemplatesPage } from "../../web/src/pages/templates.js";
 import { TemplateDetail } from "../../web/src/pages/template-detail.js";
@@ -44,6 +44,7 @@ app.use(
       if (
         origin === allowed ||
         origin === "http://localhost:3000" ||
+        origin === "http://localhost:8787" ||
         origin === "http://localhost:8788"
       ) {
         return origin;
@@ -81,23 +82,23 @@ app.get("/api/health", (c) =>
   c.json({ status: "ok", version: "0.2.0" })
 );
 
-// --- Web Pages ---
-app.use("/*", renderer);
-
-app.get("/", (c) => c.render(<Home />));
-app.get("/templates", (c) => c.render(<TemplatesPage />));
+// --- Web Pages (React SSR) ---
+app.get("/", (c) => c.html(renderPage(<Home />)));
+app.get("/templates", (c) => c.html(renderPage(<TemplatesPage />)));
 app.get("/templates/:id", (c) => {
   const id = c.req.param("id");
   const template = TEMPLATES.find((t) => t.id === id);
   if (!template) return c.notFound();
   const content = TEMPLATE_CONTENT[id];
-  return c.render(
-    <TemplateDetail template={template} content={content} />,
-    { title: `${template.name} — seclaw`, description: template.description },
+  return c.html(
+    renderPage(<TemplateDetail template={template} content={content} />, {
+      title: `${template.name} — seclaw`,
+      description: template.description,
+    }),
   );
 });
-app.get("/docs", (c) => c.render(<Docs />));
-app.get("/success", (c) => c.render(<Success />));
+app.get("/docs", (c) => c.html(renderPage(<Docs />)));
+app.get("/success", (c) => c.html(renderPage(<Success />)));
 
 // Dashboard — requires auth (SSR)
 app.get("/dashboard", async (c) => {
@@ -117,8 +118,8 @@ app.get("/dashboard", async (c) => {
     .bind(user.id)
     .all();
 
-  return c.render(
-    <Dashboard user={user} licenses={result.results as any} />
+  return c.html(
+    renderPage(<Dashboard user={user} licenses={result.results as any} />),
   );
 });
 
@@ -127,16 +128,19 @@ app.notFound((c) => {
   if (c.req.path.startsWith("/api/")) {
     return c.json({ error: "Not found" }, 404);
   }
-  return c.render(
-    <div class="flex min-h-screen items-center justify-center">
-      <div class="text-center">
-        <h1 class="text-4xl font-bold text-white">404</h1>
-        <p class="mt-2 text-neutral-400">Page not found</p>
-        <a href="/" class="mt-4 inline-block text-green-400 underline">
-          Go home
-        </a>
-      </div>
-    </div>
+  return c.html(
+    renderPage(
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white">404</h1>
+          <p className="mt-2 text-neutral-400">Page not found</p>
+          <a href="/" className="mt-4 inline-block text-green-400 underline">
+            Go home
+          </a>
+        </div>
+      </div>,
+    ),
+    404,
   );
 });
 
