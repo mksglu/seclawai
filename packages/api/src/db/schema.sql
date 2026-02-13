@@ -9,22 +9,33 @@ CREATE TABLE IF NOT EXISTS templates (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS licenses (
+-- One token per user, never expires
+CREATE TABLE IF NOT EXISTS tokens (
   id TEXT PRIMARY KEY,
-  email TEXT NOT NULL,
-  template_id TEXT NOT NULL REFERENCES templates(id),
-  license_key TEXT UNIQUE NOT NULL,
-  stripe_payment_id TEXT,
-  activated_at TEXT,
+  email TEXT UNIQUE NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  user_id TEXT,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Which templates a user has purchased
+CREATE TABLE IF NOT EXISTS purchases (
+  id TEXT PRIMARY KEY,
+  token_id TEXT NOT NULL REFERENCES tokens(id),
+  template_id TEXT NOT NULL REFERENCES templates(id),
+  stripe_payment_id TEXT,
+  purchased_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(token_id, template_id)
 );
 
 CREATE TABLE IF NOT EXISTS downloads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  license_id TEXT NOT NULL REFERENCES licenses(id),
+  token_id TEXT NOT NULL REFERENCES tokens(id),
+  template_id TEXT NOT NULL,
   ip TEXT,
   downloaded_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
-CREATE INDEX IF NOT EXISTS idx_licenses_email ON licenses(email);
+CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens(token);
+CREATE INDEX IF NOT EXISTS idx_tokens_email ON tokens(email);
+CREATE INDEX IF NOT EXISTS idx_purchases_token ON purchases(token_id);

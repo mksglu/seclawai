@@ -1,0 +1,14 @@
+{
+  "name": "@seclaw/templates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup types.ts --format esm --dts --clean && cp -r free dist/free && cp -r paid dist/paid",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  }
+}

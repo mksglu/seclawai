@@ -99,6 +99,12 @@ export async function handleWebhook(
 
   console.log(`[telegram] M: ${userText.substring(0, 80)}`);
 
+  // Handle pending integration param collection
+  if (pendingParams.has(chatId) && !userText.startsWith("/")) {
+    await collectIntegrationParam(chatId, userText, config, toolCtx);
+    return;
+  }
+
   // Handle /integrations command
   if (userText.startsWith("/integrations")) {
     await handleIntegrations(chatId, config, toolCtx);
@@ -217,7 +223,13 @@ function saveHistory(chatId: number, workspace: string, messages: ChatMessage[])
 
 /* ── /integrations command ────────────────────────────────────── */
 
-const INTEGRATIONS: Record<string, { name: string; app: string; hint: string }> = {
+interface IntegrationParam {
+  key: string;
+  label: string;
+  example: string;
+}
+
+const INTEGRATIONS: Record<string, { name: string; app: string; hint: string; params?: IntegrationParam[] }> = {
   gmail:      { name: "Gmail",           app: "gmail",          hint: "email" },
   drive:      { name: "Google Drive",    app: "googledrive",    hint: "files" },
   calendar:   { name: "Google Calendar", app: "googlecalendar", hint: "events" },
@@ -229,8 +241,13 @@ const INTEGRATIONS: Record<string, { name: string; app: string; hint: string }> 
   todoist:    { name: "Todoist",         app: "todoist",        hint: "tasks" },
   sheets:     { name: "Google Sheets",   app: "googlesheets",   hint: "spreadsheets" },
   dropbox:    { name: "Dropbox",         app: "dropbox",        hint: "files" },
-  whatsapp:   { name: "WhatsApp",        app: "whatsapp",       hint: "messaging" },
+  whatsapp:   { name: "WhatsApp",        app: "whatsapp",       hint: "messaging", params: [
+    { key: "WABA_ID", label: "WABA ID", example: "123456789012345" },
+  ]},
 };
+
+/** Pending param collection: chatId → { key, params collected so far, integration key } */
+const pendingParams = new Map<number, { integrationKey: string; params: IntegrationParam[]; collected: Record<string, string>; currentIndex: number }>();
 
 const COMPOSIO_API = "https://backend.composio.dev/api/v3";
 
@@ -332,6 +349,63 @@ async function handleIntegrationConnect(chatId: number, key: string, config: Age
     return;
   }
 
+  // If integration requires extra params, start collection flow
+  if (integration.params?.length) {
+    pendingParams.set(chatId, {
+      integrationKey: key,
+      params: integration.params,
+      collected: {},
+      currentIndex: 0,
+    });
+    const first = integration.params[0];
+    await sendMessage(token, chatId,
+      `${integration.name} requires additional configuration.\n\n` +
+      `Please send your *${first.label}*\n` +
+      `Example: \`${first.example}\``
+    );
+    return;
+  }
+
+  // No extra params needed — connect directly
+  await doIntegrationConnect(chatId, key, {}, config, toolCtx);
+}
+
+async function collectIntegrationParam(chatId: number, text: string, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+  const pending = pendingParams.get(chatId);
+  if (!pending) return;
+
+  const param = pending.params[pending.currentIndex];
+  pending.collected[param.key] = text.trim();
+  pending.currentIndex++;
+
+  if (pending.currentIndex < pending.params.length) {
+    // Ask for next param
+    const next = pending.params[pending.currentIndex];
+    await sendMessage(config.telegramToken, chatId,
+      `Please send your *${next.label}*\nExample: \`${next.example}\``
+    );
+    return;
+  }
+
+  // All params collected — proceed with connection
+  const integrationKey = pending.integrationKey;
+  const collected = { ...pending.collected };
+  pendingParams.delete(chatId);
+
+  await doIntegrationConnect(chatId, integrationKey, collected, config, toolCtx);
+}
+
+async function doIntegrationConnect(
+  chatId: number,
+  key: string,
+  extraParams: Record<string, string>,
+  config: AgentConfig,
+  toolCtx: ToolContext,
+): Promise<void> {
+  const token = config.telegramToken;
+  const apiKey = config.composioApiKey!;
+  const integration = INTEGRATIONS[key];
+
   try {
     await sendMessage(token, chatId, `Connecting ${integration.name}...`);
 
@@ -354,11 +428,16 @@ async function handleIntegrationConnect(chatId: number, key: string, config: Age
 
     // 2. Create connection → get OAuth redirect URL
     const entityId = config.composioUserId || "default";
+    const connectionBody: Record<string, unknown> = { entity_id: entityId };
+    if (Object.keys(extraParams).length > 0) {
+      connectionBody.config = extraParams;
+    }
+
     const connection = await composioFetch(apiKey, "/connected_accounts", {
       method: "POST",
       body: JSON.stringify({
         auth_config: { id: authConfigId },
-        connection: { entity_id: entityId },
+        connection: connectionBody,
       }),
     });
 
@@ -809,19 +888,31 @@ async function answerCallbackQuery(token: string, callbackId: string): Promise<v
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function composioFetch(apiKey: string, path: string, options?: RequestInit): Promise<any> {
-  const res = await fetch(`${COMPOSIO_API}${path}`, {
-    ...options,
-    headers: {
-      "x-api-key": apiKey,
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Composio ${res.status}: ${body.substring(0, 200)}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(`${COMPOSIO_API}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Composio ${res.status}: ${body.substring(0, 200)}`);
+    }
+    return res.json() as Promise<Record<string, unknown>>;
+  } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      throw new Error("Composio API timeout (15s). Try again later.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json() as Promise<Record<string, unknown>>;
 }
 
 function parseBody(req: IncomingMessage): Promise<TelegramUpdate | null> {

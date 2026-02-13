@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app.js";
 import { createStripeClient, verifyWebhookSignature } from "../lib/stripe.js";
-import { generateLicenseId, generateLicenseKey } from "../lib/license.js";
-import { sendLicenseEmail } from "../lib/email.js";
+import { generateToken, generateTokenId, generatePurchaseId } from "../lib/license.js";
+import { sendTokenEmail } from "../lib/email.js";
 
 const webhook = new Hono<AppEnv>();
 
@@ -37,41 +37,53 @@ webhook.post("/stripe", async (c) => {
       return c.json({ error: "Missing metadata" }, 400);
     }
 
-    const licenseId = generateLicenseId();
-    const licenseKey = generateLicenseKey();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Find or create token for this user
+    let tokenRow = await c.env.DB.prepare(
+      "SELECT id, token FROM tokens WHERE email = ?"
+    ).bind(email).first<{ id: string; token: string }>();
 
+    if (!tokenRow) {
+      const tokenId = generateTokenId();
+      const token = generateToken();
+      await c.env.DB.prepare(
+        "INSERT INTO tokens (id, email, token, user_id) VALUES (?, ?, ?, ?)"
+      ).bind(tokenId, email, token, userId || null).run();
+      tokenRow = { id: tokenId, token };
+    }
+
+    // Add template to purchases (ignore if already owned)
+    const purchaseId = generatePurchaseId();
     await c.env.DB.prepare(
-      `INSERT INTO licenses (id, email, template_id, license_key, stripe_payment_id, user_id, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(licenseId, email, templateId, licenseKey, session.id, userId || null, expiresAt)
-      .run();
+      "INSERT OR IGNORE INTO purchases (id, token_id, template_id, stripe_payment_id) VALUES (?, ?, ?, ?)"
+    ).bind(purchaseId, tokenRow.id, templateId, session.id).run();
 
     // Get template name for email
     const template = await c.env.DB.prepare(
       "SELECT name FROM templates WHERE id = ?"
-    )
-      .bind(templateId)
-      .first<{ name: string }>();
+    ).bind(templateId).first<{ name: string }>();
 
-    // Send license email via Resend
+    // Send token email
     if (c.env.RESEND_API_KEY && template) {
       try {
-        await sendLicenseEmail(
+        // Get all owned templates for this user
+        const owned = await c.env.DB.prepare(
+          "SELECT t.name FROM purchases p JOIN templates t ON p.template_id = t.id WHERE p.token_id = ? ORDER BY p.purchased_at"
+        ).bind(tokenRow.id).all<{ name: string }>();
+
+        await sendTokenEmail(
           c.env.RESEND_API_KEY,
           email,
           template.name,
-          licenseKey,
+          tokenRow.token,
           templateId,
-          expiresAt
+          owned.results.map((r) => r.name)
         );
       } catch (err) {
-        console.error("Failed to send license email:", err);
+        console.error("Failed to send token email:", err);
       }
     }
 
-    console.log(`License created: ${licenseKey} for ${email} (${templateId})`);
+    console.log(`Purchase: ${email} bought ${templateId} (token: ${tokenRow.token.slice(0, 12)}...)`);
   }
 
   return c.json({ received: true });

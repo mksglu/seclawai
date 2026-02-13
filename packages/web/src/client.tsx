@@ -35,9 +35,17 @@ function useSession() {
   };
 }
 
+interface CheckoutResponse {
+  url?: string;
+  error?: string;
+  dev?: boolean;
+  token?: string;
+  message?: string;
+}
+
 function useCheckout() {
   return useMutation({
-    mutationFn: async (templateId: string) => {
+    mutationFn: async (templateId: string): Promise<CheckoutResponse> => {
       const res = await fetch(API + "/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,9 +57,16 @@ function useCheckout() {
   });
 }
 
-function useLicenseSession(sessionId: string | null) {
-  return useQuery({
-    queryKey: ["license", sessionId],
+interface TokenSessionResponse {
+  token?: string;
+  templateId?: string;
+  templateName?: string;
+  error?: string;
+}
+
+function useTokenSession(sessionId: string | null) {
+  return useQuery<TokenSessionResponse>({
+    queryKey: ["token-session", sessionId],
     queryFn: async () => {
       const res = await fetch(API + "/api/templates/session/" + sessionId);
       return res.json();
@@ -96,7 +111,7 @@ function AuthModal({
           <p className="font-mono text-sm font-bold text-green-400">seclaw</p>
           <DialogTitle className="mt-4">Sign in to continue</DialogTitle>
           <DialogDescription className="mt-2">
-            Create an account to purchase templates and manage your licenses.
+            Create an account to purchase templates and manage your token.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,23 +201,34 @@ function NavAuth() {
   );
 }
 
-function LicenseDisplay({ sessionId }: { sessionId: string }) {
-  const { data } = useLicenseSession(sessionId);
+function TokenDisplay({ sessionId }: { sessionId: string }) {
+  const { data } = useTokenSession(sessionId);
 
-  if (!data?.licenseKey) {
-    return <p className="text-neutral-500">Loading license...</p>;
+  if (!data?.token) {
+    return <p className="text-neutral-500">Loading your token...</p>;
   }
 
-  const command = `npx seclaw add ${data.templateId} --key ${data.licenseKey}`;
+  const command = `npx seclaw add ${data.templateId} --key ${data.token}`;
 
   const copyCommand = () => {
     navigator.clipboard.writeText(command);
   };
 
+  const copyToken = () => {
+    navigator.clipboard.writeText(data.token!);
+  };
+
   return (
     <div>
       <p className="text-xs text-neutral-500 mb-2">{data.templateName}</p>
-      <code className="text-green-400 text-lg select-all">{data.licenseKey}</code>
+      <div
+        className="flex items-center gap-2 cursor-pointer group"
+        onClick={copyToken}
+      >
+        <code className="text-green-400 text-lg select-all">{data.token}</code>
+        <span className="text-neutral-600 group-hover:text-green-400 transition text-xs">copy</span>
+      </div>
+      <p className="mt-2 text-xs text-neutral-600">This token never expires. Use it for all your purchased templates.</p>
       <div
         className="mt-4 flex items-center gap-2 rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-3 cursor-pointer hover:border-neutral-700 transition"
         onClick={copyCommand}
@@ -241,6 +267,211 @@ function AutoBuy() {
   return null;
 }
 
+// --- Dashboard ---
+
+interface OwnedTemplate {
+  id: string;
+  name: string;
+  description: string;
+  purchased_at: string;
+}
+
+function useOwnedTemplates(token: string | null) {
+  return useQuery<{ templates: OwnedTemplate[] }>({
+    queryKey: ["owned", token],
+    queryFn: async () => {
+      const res = await fetch(API + "/api/templates/owned?token=" + token);
+      return res.json();
+    },
+    enabled: !!token,
+  });
+}
+
+function DashboardContent() {
+  const session = useSession();
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenVisible, setTokenVisible] = useState(false);
+  const owned = useOwnedTemplates(token);
+
+  useEffect(() => {
+    if (session.data?.user) {
+      // Fetch user's token
+      fetch(API + "/api/templates/regenerate", {
+        method: "POST",
+        credentials: "include",
+      })
+        .then((r) => r.json() as Promise<{ token?: string }>)
+        .then((data) => {
+          if (data.token) setToken(data.token);
+        })
+        .catch(() => {});
+    }
+  }, [session.data]);
+
+  if (session.isPending) {
+    return <div className="text-center text-neutral-500">Loading...</div>;
+  }
+
+  if (!session.data?.user) {
+    return (
+      <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-12 text-center">
+        <p className="text-neutral-400">Sign in to view your dashboard.</p>
+        <a
+          href="/"
+          className="mt-4 inline-block rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+        >
+          Go Home
+        </a>
+      </div>
+    );
+  }
+
+  const user = session.data.user;
+  const templates = owned.data?.templates || [];
+
+  const copyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const handleSignOut = () => {
+    fetch("/api/auth/sign-out", { method: "POST", credentials: "include" })
+      .then(() => { window.location.href = "/"; });
+  };
+
+  const handleRegenerate = () => {
+    if (!confirm("Regenerate your token? Your old token will stop working.")) return;
+    fetch(API + "/api/templates/regenerate", {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((r) => r.json() as Promise<{ token?: string; error?: string }>)
+      .then((data) => {
+        if (data.token) {
+          setToken(data.token);
+          alert("Token regenerated.");
+        } else {
+          alert(data.error || "Failed to regenerate.");
+        }
+      });
+  };
+
+  return (
+    <div>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">
+            Welcome back, {user.name?.split(" ")[0] || "there"}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-400">{user.email}</p>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="text-xs text-neutral-500 transition hover:text-white"
+        >
+          Sign out
+        </button>
+      </div>
+
+      {token && (
+        <div className="mb-8 rounded-xl border border-neutral-800 bg-neutral-900/50 p-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-neutral-400">Your Token</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setTokenVisible(!tokenVisible)}
+                className="text-xs text-neutral-500 transition hover:text-white"
+              >
+                {tokenVisible ? "Hide" : "Reveal"}
+              </button>
+              <button
+                onClick={() => copyText(token)}
+                className="text-xs text-neutral-500 transition hover:text-white"
+              >
+                Copy
+              </button>
+              <button
+                onClick={handleRegenerate}
+                className="text-xs text-neutral-500 transition hover:text-white"
+              >
+                Regenerate
+              </button>
+            </div>
+          </div>
+          <code className="block rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 font-mono text-sm text-green-400">
+            {tokenVisible ? token : "••••••••••••••••••••••••••••••••"}
+          </code>
+          <p className="mt-2 text-xs text-neutral-600">
+            This token never expires. Use it to download all your purchased templates.
+          </p>
+        </div>
+      )}
+
+      {templates.length === 0 ? (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-12 text-center">
+          <p className="text-neutral-400">No templates purchased yet.</p>
+          <a
+            href="/templates"
+            className="mt-4 inline-block rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+          >
+            Browse Templates
+          </a>
+        </div>
+      ) : (
+        <div>
+          <h2 className="mb-4 text-sm font-medium text-neutral-400">
+            Your Templates ({templates.length})
+          </h2>
+          <div className="space-y-4">
+            {templates.map((t) => (
+              <div key={t.id} className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-6">
+                <h3 className="text-lg font-semibold text-white">{t.name}</h3>
+                <p className="mt-1 text-sm text-neutral-400">{t.description}</p>
+                {token && (
+                  <div className="mt-4">
+                    <p className="mb-1 text-xs text-neutral-500">Install Command</p>
+                    <div
+                      className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 cursor-pointer hover:border-neutral-600 transition"
+                      onClick={() => copyText(`npx seclaw add ${t.id} --key ${token}`)}
+                    >
+                      <code className="flex-1 font-mono text-xs text-green-400 select-all">
+                        npx seclaw add {t.id} --key {tokenVisible ? token : "YOUR_TOKEN"}
+                      </code>
+                      <span className="text-xs text-neutral-600">copy</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashboardNavAuth() {
+  const session = useSession();
+
+  if (!session.data?.user) return null;
+
+  const user = session.data.user;
+  return (
+    <div className="flex items-center gap-3">
+      {user.image ? (
+        <img
+          src={user.image}
+          alt=""
+          className="h-7 w-7 rounded-full border border-neutral-700"
+        />
+      ) : (
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500/10 text-xs font-semibold text-green-400">
+          {(user.name || "U").charAt(0).toUpperCase()}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Mount ---
 
 function mountTo(id: string, component: React.ReactElement) {
@@ -266,14 +497,20 @@ document.querySelectorAll<HTMLElement>("[data-buy-root]").forEach((el) => {
   );
 });
 
-// License display on success page
+// Token display on success page
 const params = new URLSearchParams(window.location.search);
 const sessionId = params.get("session_id");
 if (window.location.pathname === "/success" && sessionId) {
-  mountTo("license-display", <LicenseDisplay sessionId={sessionId} />);
+  mountTo("license-display", <TokenDisplay sessionId={sessionId} />);
 }
 
 // Auto-buy after auth redirect
 if (window.location.pathname === "/templates" && params.get("buy")) {
   mountTo("auto-buy-root", <AutoBuy />);
+}
+
+// Dashboard
+if (window.location.pathname === "/dashboard") {
+  mountTo("dashboard-content", <DashboardContent />);
+  mountTo("dashboard-nav-auth", <DashboardNavAuth />);
 }

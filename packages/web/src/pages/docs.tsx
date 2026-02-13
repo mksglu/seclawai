@@ -302,11 +302,11 @@ export function Docs() {
                     /templates
                   </a>
                 </li>
-                <li>Receive your license key via email</li>
+                <li>Receive your token via email (one token for all purchases, never expires)</li>
                 <li>
                   Run:{" "}
                   <code className="text-green-400">
-                    npx seclaw add template-name --key YOUR_KEY
+                    npx seclaw add template-name --key YOUR_TOKEN
                   </code>
                 </li>
                 <li>Template is installed — system prompt, schedules, and integrations update automatically</li>

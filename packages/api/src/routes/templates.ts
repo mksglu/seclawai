@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app.js";
 import { getTemplateContent } from "../lib/r2.js";
-import { generateLicenseKey, generateLicenseId } from "../lib/license.js";
+import { generateToken, generateTokenId, generatePurchaseId } from "../lib/license.js";
 import { createStripeClient } from "../lib/stripe.js";
-import { sendLicenseEmail } from "../lib/email.js";
+import { sendTokenEmail } from "../lib/email.js";
 
 const templates = new Hono<AppEnv>();
 
@@ -28,60 +28,48 @@ templates.get("/", async (c) => {
   return c.json(catalog);
 });
 
-// Activate a paid template with license key
+// Activate: download a template using token
 templates.post("/activate", async (c) => {
-  const { licenseKey } = await c.req.json<{ licenseKey: string }>();
+  const { token, templateId } = await c.req.json<{ token: string; templateId: string }>();
 
-  if (!licenseKey) {
-    return c.json({ error: "licenseKey is required" }, 400);
+  if (!token || !templateId) {
+    return c.json({ error: "token and templateId are required" }, 400);
   }
 
-  const license = await c.env.DB.prepare(
-    "SELECT l.*, t.file_key, t.id as tid, t.name as tname FROM licenses l JOIN templates t ON l.template_id = t.id WHERE l.license_key = ?"
-  )
-    .bind(licenseKey)
-    .first<{
-      id: string;
-      template_id: string;
-      activated_at: string | null;
-      expires_at: string | null;
-      file_key: string;
-      tid: string;
-      tname: string;
-    }>();
+  // Look up token
+  const tokenRow = await c.env.DB.prepare(
+    "SELECT id FROM tokens WHERE token = ?"
+  ).bind(token).first<{ id: string }>();
 
-  if (!license) {
-    return c.json({ error: "Invalid license key" }, 400);
+  if (!tokenRow) {
+    return c.json({ error: "Invalid token" }, 400);
   }
 
-  // Check expiry
-  if (license.expires_at && new Date(license.expires_at) < new Date()) {
-    return c.json({
-      error: "License key expired. Regenerate from your dashboard at seclawai.com/dashboard",
-    }, 403);
+  // Check if user owns this template
+  const purchase = await c.env.DB.prepare(
+    "SELECT id FROM purchases WHERE token_id = ? AND template_id = ?"
+  ).bind(tokenRow.id, templateId).first<{ id: string }>();
+
+  if (!purchase) {
+    return c.json({ error: "You don't own this template. Purchase it at seclawai.com/templates" }, 403);
   }
 
-  // Mark as activated
-  if (!license.activated_at) {
-    await c.env.DB.prepare(
-      'UPDATE licenses SET activated_at = datetime("now") WHERE id = ?'
-    )
-      .bind(license.id)
-      .run();
+  // Get template file_key
+  const template = await c.env.DB.prepare(
+    "SELECT file_key, name FROM templates WHERE id = ?"
+  ).bind(templateId).first<{ file_key: string; name: string }>();
+
+  if (!template) {
+    return c.json({ error: "Template not found" }, 404);
   }
 
   // Log download
   await c.env.DB.prepare(
-    "INSERT INTO downloads (license_id, ip) VALUES (?, ?)"
-  )
-    .bind(license.id, c.req.header("cf-connecting-ip") || "unknown")
-    .run();
+    "INSERT INTO downloads (token_id, template_id, ip) VALUES (?, ?, ?)"
+  ).bind(tokenRow.id, templateId, c.req.header("cf-connecting-ip") || "unknown").run();
 
   // Get template bundle from R2
-  const content = await getTemplateContent(
-    c.env.TEMPLATE_BUCKET,
-    license.file_key
-  );
+  const content = await getTemplateContent(c.env.TEMPLATE_BUCKET, template.file_key);
 
   if (!content) {
     return c.json({ error: "Template file not found" }, 500);
@@ -90,70 +78,87 @@ templates.post("/activate", async (c) => {
   const bundle = JSON.parse(content) as Record<string, string>;
 
   return c.json({
-    templateId: license.template_id,
-    templateName: license.tname,
+    templateId,
+    templateName: template.name,
     files: bundle,
   });
 });
 
-// Regenerate license key (auth required)
+// List owned templates (token required)
+templates.get("/owned", async (c) => {
+  const token = c.req.header("x-token") || c.req.query("token");
+
+  if (!token) {
+    return c.json({ error: "Token required" }, 400);
+  }
+
+  const tokenRow = await c.env.DB.prepare(
+    "SELECT id FROM tokens WHERE token = ?"
+  ).bind(token).first<{ id: string }>();
+
+  if (!tokenRow) {
+    return c.json({ error: "Invalid token" }, 400);
+  }
+
+  const owned = await c.env.DB.prepare(
+    "SELECT t.id, t.name, t.description, p.purchased_at FROM purchases p JOIN templates t ON p.template_id = t.id WHERE p.token_id = ? ORDER BY p.purchased_at"
+  ).bind(tokenRow.id).all<{
+    id: string;
+    name: string;
+    description: string;
+    purchased_at: string;
+  }>();
+
+  return c.json({ templates: owned.results });
+});
+
+// Regenerate token (auth required)
 templates.post("/regenerate", async (c) => {
   const user = c.get("user");
   if (!user) {
     return c.json({ error: "Authentication required" }, 401);
   }
 
-  const { licenseId } = await c.req.json<{ licenseId: string }>();
-  if (!licenseId) {
-    return c.json({ error: "licenseId is required" }, 400);
+  // Find user's token
+  const tokenRow = await c.env.DB.prepare(
+    "SELECT id FROM tokens WHERE user_id = ?"
+  ).bind(user.id).first<{ id: string }>();
+
+  if (!tokenRow) {
+    return c.json({ error: "No token found" }, 404);
   }
 
-  // Verify ownership
-  const license = await c.env.DB.prepare(
-    "SELECT id FROM licenses WHERE id = ? AND user_id = ?"
-  )
-    .bind(licenseId, user.id)
-    .first();
-
-  if (!license) {
-    return c.json({ error: "License not found" }, 404);
-  }
-
-  const newKey = generateLicenseKey();
-  const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const newToken = generateToken();
 
   await c.env.DB.prepare(
-    "UPDATE licenses SET license_key = ?, expires_at = ?, activated_at = NULL WHERE id = ?"
-  )
-    .bind(newKey, newExpiry, licenseId)
-    .run();
+    "UPDATE tokens SET token = ? WHERE id = ?"
+  ).bind(newToken, tokenRow.id).run();
 
-  return c.json({ licenseKey: newKey, expiresAt: newExpiry });
+  return c.json({ token: newToken });
 });
 
-// Lookup license by Stripe session (success page)
-// If webhook hasn't fired yet, fetches session from Stripe API and creates license on the fly
+// Lookup token by Stripe session (success page)
 templates.get("/session/:sessionId", async (c) => {
   const sessionId = c.req.param("sessionId");
 
-  // 1. Check DB first (webhook may have already created it)
+  // 1. Check DB: find purchase by stripe_payment_id
   const existing = await c.env.DB.prepare(
-    "SELECT l.license_key, l.template_id, l.expires_at, t.name as template_name FROM licenses l JOIN templates t ON l.template_id = t.id WHERE l.stripe_payment_id = ?"
-  )
-    .bind(sessionId)
-    .first<{
-      license_key: string;
-      template_id: string;
-      expires_at: string | null;
-      template_name: string;
-    }>();
+    `SELECT t.token, p.template_id, tmpl.name as template_name
+     FROM purchases p
+     JOIN tokens t ON p.token_id = t.id
+     JOIN templates tmpl ON p.template_id = tmpl.id
+     WHERE p.stripe_payment_id = ?`
+  ).bind(sessionId).first<{
+    token: string;
+    template_id: string;
+    template_name: string;
+  }>();
 
   if (existing) {
     return c.json({
-      licenseKey: existing.license_key,
+      token: existing.token,
       templateId: existing.template_id,
       templateName: existing.template_name,
-      expiresAt: existing.expires_at,
     });
   }
 
@@ -174,51 +179,61 @@ templates.get("/session/:sessionId", async (c) => {
       return c.json({ error: "Missing metadata in Stripe session" }, 400);
     }
 
-    // Prevent duplicate: re-check DB (race condition guard)
+    // Race condition guard
     const recheck = await c.env.DB.prepare(
-      "SELECT license_key FROM licenses WHERE stripe_payment_id = ?"
-    ).bind(sessionId).first<{ license_key: string }>();
+      "SELECT t.token FROM purchases p JOIN tokens t ON p.token_id = t.id WHERE p.stripe_payment_id = ?"
+    ).bind(sessionId).first<{ token: string }>();
 
     if (recheck) {
       const tmpl = await c.env.DB.prepare("SELECT name FROM templates WHERE id = ?")
         .bind(templateId).first<{ name: string }>();
       return c.json({
-        licenseKey: recheck.license_key,
+        token: recheck.token,
         templateId,
         templateName: tmpl?.name || templateId,
-        expiresAt: null,
       });
     }
 
-    // 3. Create the license (same logic as webhook)
-    const licenseId = generateLicenseId();
-    const licenseKey = generateLicenseKey();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // 3. Find or create token for this user
+    let tokenRow = await c.env.DB.prepare(
+      "SELECT id, token FROM tokens WHERE email = ?"
+    ).bind(email).first<{ id: string; token: string }>();
 
+    if (!tokenRow) {
+      const tokenId = generateTokenId();
+      const token = generateToken();
+      await c.env.DB.prepare(
+        "INSERT INTO tokens (id, email, token, user_id) VALUES (?, ?, ?, ?)"
+      ).bind(tokenId, email, token, userId || null).run();
+      tokenRow = { id: tokenId, token };
+    }
+
+    // Add purchase
+    const purchaseId = generatePurchaseId();
     await c.env.DB.prepare(
-      `INSERT INTO licenses (id, email, template_id, license_key, stripe_payment_id, user_id, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(licenseId, email, templateId, licenseKey, sessionId, userId || null, expiresAt)
-      .run();
+      "INSERT OR IGNORE INTO purchases (id, token_id, template_id, stripe_payment_id) VALUES (?, ?, ?, ?)"
+    ).bind(purchaseId, tokenRow.id, templateId, sessionId).run();
 
     const template = await c.env.DB.prepare("SELECT name FROM templates WHERE id = ?")
       .bind(templateId).first<{ name: string }>();
 
-    // Send license email
+    // Send token email
     if (c.env.RESEND_API_KEY && template) {
       try {
-        await sendLicenseEmail(c.env.RESEND_API_KEY, email, template.name, licenseKey, templateId, expiresAt);
+        const owned = await c.env.DB.prepare(
+          "SELECT t.name FROM purchases p JOIN templates t ON p.template_id = t.id WHERE p.token_id = ? ORDER BY p.purchased_at"
+        ).bind(tokenRow.id).all<{ name: string }>();
+
+        await sendTokenEmail(c.env.RESEND_API_KEY, email, template.name, tokenRow.token, templateId, owned.results.map((r) => r.name));
       } catch (emailErr) {
-        console.error("Failed to send license email:", emailErr);
+        console.error("Failed to send token email:", emailErr);
       }
     }
 
     return c.json({
-      licenseKey,
+      token: tokenRow.token,
       templateId,
       templateName: template?.name || templateId,
-      expiresAt,
     });
   } catch (err) {
     console.error("Stripe session lookup failed:", err);

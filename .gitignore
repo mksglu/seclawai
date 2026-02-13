@@ -45,6 +45,8 @@ coverage/
 # Internal docs
 docs/
 
-# CLI templates and runtime (managed locally, not in git)
-packages/cli/templates/
+# CLI runtime (copied into dist during build)
 packages/cli/runtime/
+
+# Paid templates (commercial, not in public repo)
+packages/templates/paid/
