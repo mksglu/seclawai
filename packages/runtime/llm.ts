@@ -196,8 +196,13 @@ export async function runAgent(
     const msg = choice.message;
 
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
+      // If LLM returned empty content after tool results, retry once
+      if (!msg.content && i > 0) {
+        console.log(`[llm] Empty response after tools — retrying`);
+        continue;
+      }
       console.log(`[llm] Total: ${Date.now() - t0}ms, ${i + 1} calls`);
-      return msg.content || "(no response)";
+      return msg.content || "I processed your request but couldn't generate a response. Please try again.";
     }
 
     // Execute tool calls
@@ -290,7 +295,12 @@ async function runAnthropicDirect(
     const textBlocks = (data.content || []).filter((b) => b.type === "text");
 
     if (toolUseBlocks.length === 0) {
-      return textBlocks.map((b) => b.text).join("\n") || "(no response)";
+      const text = textBlocks.map((b) => b.text).join("\n");
+      if (!text && i > 0) {
+        console.log(`[llm] Empty response after tools (anthropic) — retrying`);
+        continue;
+      }
+      return text || "I processed your request but couldn't generate a response. Please try again.";
     }
 
     // Add assistant message with tool use
@@ -353,7 +363,7 @@ ${memory ? `\n## Memory\n${memory}` : ""}
   return prompt;
 }
 
-const MAX_TOOL_RESULT = 15_000; // chars — keeps LLM context manageable
+const MAX_TOOL_RESULT = 4_000; // chars — prevents LLM from choking on large tool results
 
 /**
  * Truncate and clean tool results to avoid sending huge payloads to the LLM.
@@ -362,6 +372,8 @@ const MAX_TOOL_RESULT = 15_000; // chars — keeps LLM context manageable
 function truncateToolResult(text: string): string {
   // Strip HTML tags (email bodies are often full HTML)
   let cleaned = text.replace(/<[^>]+>/g, " ");
+  // Strip base64 data (images/attachments embedded in email)
+  cleaned = cleaned.replace(/[A-Za-z0-9+/=]{100,}/g, "[base64-data]");
   // Collapse whitespace
   cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
 
