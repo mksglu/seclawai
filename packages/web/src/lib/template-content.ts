@@ -47,7 +47,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/inbox-agent`",
-      "Run `npx seclaw add inbox-agent --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add inbox-agent --key YOUR_TOKEN`",
       "Connect Gmail via `npx seclaw integrations`",
       "Message your bot on Telegram to get started",
     ],
@@ -69,7 +69,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/reddit-hn-digest`",
-      "Run `npx seclaw add reddit-hn-digest --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add reddit-hn-digest --key YOUR_TOKEN`",
       "Configure your subreddits in `/shared/config/preferences.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -90,7 +90,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/youtube-digest`",
-      "Run `npx seclaw add youtube-digest --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add youtube-digest --key YOUR_TOKEN`",
       "Add your channels to `/shared/config/channels.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -113,7 +113,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/health-tracker`",
-      "Run `npx seclaw add health-tracker --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add health-tracker --key YOUR_TOKEN`",
       "Reply to check-in prompts naturally via Telegram",
     ],
     howItWorks: "Check-in (3x daily) --> Log food + symptoms --> Weekly analysis\n                                                --> Find correlations\n                                                --> Update triggers\n                                                --> Report",
@@ -134,7 +134,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/earnings-tracker`",
-      "Run `npx seclaw add earnings-tracker --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add earnings-tracker --key YOUR_TOKEN`",
       "Add tickers to `/shared/config/watchlist.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -157,7 +157,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/research-agent`",
-      "Run `npx seclaw add research-agent --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add research-agent --key YOUR_TOKEN`",
       "Create your interests file at `/shared/config/interests.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -181,7 +181,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/knowledge-base`",
-      "Run `npx seclaw add knowledge-base --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add knowledge-base --key YOUR_TOKEN`",
       "Send URLs or text to save via Telegram",
     ],
     howItWorks: "Share URL/text --> Agent saves + tags + indexes --> Search later with natural language\nWeekly maintenance --> Dedup --> Verify files --> Stats report --> Telegram",
@@ -203,7 +203,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/family-calendar`",
-      "Run `npx seclaw add family-calendar --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add family-calendar --key YOUR_TOKEN`",
       "Connect Google Calendar via `npx seclaw integrations`",
       "Configure family members in `/shared/config/calendars.md`",
       "Message your bot on Telegram to get started",
@@ -227,7 +227,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/content-agent`",
-      "Run `npx seclaw add content-agent --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add content-agent --key YOUR_TOKEN`",
       "Create your style guide at `/shared/voice/style-guide.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -250,7 +250,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/personal-crm`",
-      "Run `npx seclaw add personal-crm --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add personal-crm --key YOUR_TOKEN`",
       "Connect Gmail and Google Calendar via `npx seclaw integrations`",
       "Message your bot on Telegram to get started",
     ],
@@ -272,7 +272,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/youtube-creator`",
-      "Run `npx seclaw add youtube-creator --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add youtube-creator --key YOUR_TOKEN`",
       "Define your niche in `/shared/config/niche.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -296,7 +296,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/devops-agent`",
-      "Run `npx seclaw add devops-agent --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add devops-agent --key YOUR_TOKEN`",
       "Define services in `/shared/config/services.json`",
       "Set thresholds in `/shared/config/thresholds.md`",
       "Message your bot on Telegram to get started",
@@ -321,7 +321,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/customer-service`",
-      "Run `npx seclaw add customer-service --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add customer-service --key YOUR_TOKEN`",
       "Connect Gmail via `npx seclaw integrations`",
       "Add your FAQ at `/shared/knowledge/faq.md`",
       "Message your bot on Telegram to get started",
@@ -347,7 +347,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/sales-agent`",
-      "Run `npx seclaw add sales-agent --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add sales-agent --key YOUR_TOKEN`",
       "Create your product info at `/shared/config/product-info.md`",
       "Message your bot on Telegram to get started",
     ],
@@ -369,7 +369,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
     ],
     setup: [
       "Purchase at `seclawai.com/templates/six-agent-company`",
-      "Run `npx seclaw add six-agent-company --key YOUR_LICENSE_KEY`",
+      "Run `npx seclaw add six-agent-company --key YOUR_TOKEN`",
       "Assign missions via Telegram -- the Coordinator handles the rest",
     ],
     howItWorks: "User --> Coordinator --> Assigned Agent --> Observer QC --> Deliver\n                                                    --> Retry (max 3)\n                                                    --> Escalate to human",

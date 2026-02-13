@@ -100,26 +100,10 @@ app.get("/templates/:id", (c) => {
 app.get("/docs", (c) => c.html(renderPage(<Docs />)));
 app.get("/success", (c) => c.html(renderPage(<Success />)));
 
-// Dashboard — requires auth (SSR)
-app.get("/dashboard", async (c) => {
-  const user = c.get("user");
-  if (!user) {
-    return c.redirect("/templates");
-  }
-
-  const result = await c.env.DB.prepare(
-    `SELECT l.id, l.license_key, l.template_id, l.expires_at, l.activated_at, l.created_at,
-            t.name as template_name
-     FROM licenses l
-     JOIN templates t ON l.template_id = t.id
-     WHERE l.user_id = ?
-     ORDER BY l.created_at DESC`
-  )
-    .bind(user.id)
-    .all();
-
+// Dashboard — client-hydrated (auth + data fetched via client.js)
+app.get("/dashboard", (c) => {
   return c.html(
-    renderPage(<Dashboard user={user} licenses={result.results as any} />),
+    renderPage(<Dashboard />, { title: "Dashboard — seclaw" }),
   );
 });
 

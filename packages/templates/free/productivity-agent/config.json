@@ -1,0 +1,17 @@
+{
+  "name": "Productivity Agent",
+  "version": "1.0.0",
+  "description": "Personal productivity assistant with task management, daily reports, and integrations",
+  "capabilities": [
+    "task-management",
+    "daily-reports",
+    "email-drafting",
+    "file-organization",
+    "note-taking",
+    "scheduling"
+  ],
+  "tools": {
+    "desktop-commander": true,
+    "composio": ["gmail", "google-calendar", "google-drive"]
+  }
+}

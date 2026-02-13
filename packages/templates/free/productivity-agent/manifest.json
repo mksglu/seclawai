@@ -1,0 +1,8 @@
+{
+  "id": "productivity-agent",
+  "name": "Productivity Agent",
+  "description": "Personal assistant — task management, daily reports, email drafting, file organization",
+  "price": 0,
+  "tier": "free",
+  "hook": "npx seclaw add productivity-agent"
+}

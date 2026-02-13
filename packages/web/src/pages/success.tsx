@@ -18,10 +18,10 @@ export function Success() {
             Purchase complete!
           </h1>
           <p className="mt-4 text-sm leading-6 text-neutral-400">
-            Your license key is below. Copy it to install your template:
+            Your token is below. Use it to download any template you've purchased:
           </p>
           <div id="license-display" className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4 font-mono text-sm text-center">
-            <p className="text-neutral-500">Loading your license key...</p>
+            <p className="text-neutral-500">Loading your token...</p>
           </div>
           <p className="mt-6 text-xs text-neutral-500">
             Also sent to your email. Check spam or{" "}

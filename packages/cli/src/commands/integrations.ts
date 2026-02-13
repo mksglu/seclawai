@@ -8,8 +8,15 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { findProjectDir as findProject } from "../docker.js";
 
+/** Extra fields required by some integrations before OAuth */
+interface IntegrationParam {
+  key: string;
+  label: string;
+  placeholder: string;
+}
+
 /** Composio-supported integrations */
-const INTEGRATIONS: Record<string, { name: string; app: string; hint: string }> = {
+const INTEGRATIONS: Record<string, { name: string; app: string; hint: string; params?: IntegrationParam[] }> = {
   gmail:             { name: "Gmail",           app: "gmail",           hint: "email reading, sending, labels" },
   "google-drive":    { name: "Google Drive",    app: "googledrive",     hint: "file access, sharing" },
   "google-calendar": { name: "Google Calendar", app: "googlecalendar",  hint: "events, scheduling" },
@@ -21,7 +28,9 @@ const INTEGRATIONS: Record<string, { name: string; app: string; hint: string }> 
   trello:            { name: "Trello",          app: "trello",          hint: "boards, cards, lists" },
   todoist:           { name: "Todoist",         app: "todoist",         hint: "task management" },
   dropbox:           { name: "Dropbox",         app: "dropbox",        hint: "file storage" },
-  whatsapp:          { name: "WhatsApp",        app: "whatsapp",       hint: "messaging" },
+  whatsapp:          { name: "WhatsApp",        app: "whatsapp",       hint: "messaging", params: [
+    { key: "WABA_ID", label: "WhatsApp Business Account ID (WABA ID)", placeholder: "123456789012345" },
+  ]},
 };
 
 export async function integrations() {
@@ -179,6 +188,23 @@ async function handleConnect(
   }
 
   const def = INTEGRATIONS[selected];
+
+  // Collect extra params if required (e.g. WABA ID for WhatsApp)
+  const extraParams: Record<string, string> = {};
+  if (def.params?.length) {
+    for (const param of def.params) {
+      const value = await p.text({
+        message: param.label,
+        placeholder: param.placeholder,
+      });
+      if (p.isCancel(value) || !(value as string)) {
+        p.outro("Cancelled.");
+        return;
+      }
+      extraParams[param.key] = value as string;
+    }
+  }
+
   const s = p.spinner();
 
   s.start(`Connecting ${def.name} via Composio...`);
@@ -190,7 +216,7 @@ async function handleConnect(
     const authConfigId = await getOrCreateAuthConfig(composioKey, def.app);
 
     // Step 2: Create connected account (initiates OAuth)
-    const connection = await createConnection(composioKey, authConfigId, userId);
+    const connection = await createConnection(composioKey, authConfigId, userId, extraParams);
 
     s.stop(`${def.name} authorization ready.`);
 
@@ -227,11 +253,12 @@ async function handleConnect(
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    s.stop(`Failed: ${msg}`);
-    p.log.error(
-      `Could not connect ${def.name}.\n` +
-      `  ${pc.dim("Check your Composio API key and try again.")}`
-    );
+    s.stop(`Failed to connect ${def.name}.`);
+    if (msg.includes("abort")) {
+      p.log.error(`Request timed out. Composio API did not respond within 15s.`);
+    } else {
+      p.log.error(`${msg}\n  ${pc.dim("Check your Composio API key and try again.")}`);
+    }
   }
 }
 
@@ -316,19 +343,26 @@ async function handleDisconnect(
 const COMPOSIO_API = "https://backend.composio.dev/api/v3";
 
 async function composioFetch(apiKey: string, path: string, options?: RequestInit) {
-  const res = await fetch(`${COMPOSIO_API}${path}`, {
-    ...options,
-    headers: {
-      "x-api-key": apiKey,
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Composio API ${res.status}: ${body}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(`${COMPOSIO_API}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Composio ${res.status}: ${body}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json();
 }
 
 async function getOrCreateAuthConfig(apiKey: string, appSlug: string): Promise<string> {
@@ -353,12 +387,17 @@ async function createConnection(
   apiKey: string,
   authConfigId: string,
   entityId: string,
+  params?: Record<string, string>,
 ): Promise<{ id: string; redirectUrl: string | null }> {
+  const connection: Record<string, unknown> = { entity_id: entityId };
+  if (params && Object.keys(params).length > 0) {
+    connection.config = params;
+  }
   const data = await composioFetch(apiKey, "/connected_accounts", {
     method: "POST",
     body: JSON.stringify({
       auth_config: { id: authConfigId },
-      connection: { entity_id: entityId },
+      connection,
     }),
   });
   return {
