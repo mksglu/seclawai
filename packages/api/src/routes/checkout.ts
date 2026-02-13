@@ -1,18 +1,20 @@
 import { Hono } from "hono";
-import type { Bindings } from "../app.js";
+import type { AppEnv } from "../app.js";
 import { createStripeClient } from "../lib/stripe.js";
 import { generateLicenseId, generateLicenseKey } from "../lib/license.js";
 
-const checkout = new Hono<{ Bindings: Bindings }>();
+const checkout = new Hono<AppEnv>();
 
 checkout.post("/", async (c) => {
-  const { templateId, email } = await c.req.json<{
-    templateId: string;
-    email: string;
-  }>();
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Authentication required" }, 401);
+  }
 
-  if (!templateId || !email) {
-    return c.json({ error: "templateId and email are required" }, 400);
+  const { templateId } = await c.req.json<{ templateId: string }>();
+
+  if (!templateId) {
+    return c.json({ error: "templateId is required" }, 400);
   }
 
   const template = await c.env.DB.prepare(
@@ -34,22 +36,34 @@ checkout.post("/", async (c) => {
     return c.json({ error: "This template is free. Use the CLI to install." }, 400);
   }
 
-  // Dev mode: no Stripe key configured — generate license directly
+  // Check if user already owns this template
+  const existing = await c.env.DB.prepare(
+    "SELECT id FROM licenses WHERE user_id = ? AND template_id = ?"
+  )
+    .bind(user.id, templateId)
+    .first();
+
+  if (existing) {
+    return c.json({ error: "You already own this template. Check your dashboard." }, 400);
+  }
+
+  // Dev mode: no Stripe key — generate license directly
   if (!c.env.STRIPE_SECRET_KEY) {
     const licenseId = generateLicenseId();
     const licenseKey = generateLicenseKey();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     await c.env.DB.prepare(
-      `INSERT INTO licenses (id, email, template_id, license_key, stripe_payment_id)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO licenses (id, email, template_id, license_key, stripe_payment_id, user_id, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(licenseId, email, templateId, licenseKey, `dev_${licenseId}`)
+      .bind(licenseId, user.email, templateId, licenseKey, `dev_${licenseId}`, user.id, expiresAt)
       .run();
 
     return c.json({
       dev: true,
       licenseKey,
-      message: `Dev mode — license created for ${template.name}. Use: npx seclaw add ${templateId} --key ${licenseKey}`,
+      message: `Dev mode — license created. Use: npx seclaw add ${templateId} --key ${licenseKey}`,
     });
   }
 
@@ -57,7 +71,7 @@ checkout.post("/", async (c) => {
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    customer_email: email,
+    customer_email: user.email,
     line_items: [{
       price_data: {
         currency: "usd",
@@ -71,7 +85,7 @@ checkout.post("/", async (c) => {
     }],
     success_url: `${c.env.CORS_ORIGIN}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${c.env.CORS_ORIGIN}/templates`,
-    metadata: { templateId, email },
+    metadata: { templateId, userId: user.id, email: user.email },
   });
 
   return c.json({ url: session.url });

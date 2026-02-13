@@ -4,6 +4,7 @@ const useCases = [
     description:
       "Morning report ready when you wake up. Task management, daily reports, email drafting, and file organization — all running locally on your machine.",
     template: "Productivity Agent",
+    templateId: "productivity-agent",
     price: "Free",
     icon: "P",
   },
@@ -12,6 +13,7 @@ const useCases = [
     description:
       "3 urgent, 5 action needed, 12 FYI, 8 newsletter. AI inbox manager that categorizes, summarizes, and triages your Gmail. Urgent items arrive instantly via Telegram.",
     template: "Inbox Agent",
+    templateId: "inbox-agent",
     price: "$19",
     icon: "I",
   },
@@ -20,6 +22,7 @@ const useCases = [
     description:
       "Know when competitors change anything — in 5 minutes. Monitors X, Hacker News, Reddit, and RSS feeds for industry intelligence with scheduled briefings.",
     template: "Research Agent",
+    templateId: "research-agent",
     price: "$39",
     icon: "R",
   },
@@ -28,6 +31,7 @@ const useCases = [
     description:
       "Your X account grows while you sleep. Research trending topics, draft posts in your voice, publish with human-in-the-loop approval, and track engagement.",
     template: "Content Agent",
+    templateId: "content-agent",
     price: "$49",
     icon: "C",
   },
@@ -36,6 +40,7 @@ const useCases = [
     description:
       "Find leads overnight, inbox full by morning. Detect buying signals on X, qualify prospects, draft personalized outreach, and log to CRM automatically.",
     template: "Sales Agent",
+    templateId: "sales-agent",
     price: "$79",
     icon: "S",
   },
@@ -44,6 +49,7 @@ const useCases = [
     description:
       "6 AI agents running your company for $8/month. Coordinator, Executor, Observer, Analyst, Content, Growth — with quality gates and multi-agent orchestration.",
     template: "6-Agent Company",
+    templateId: "six-agent-company",
     price: "$149",
     icon: "6",
   },
@@ -62,11 +68,14 @@ export function BuiltFor() {
 
         <div class="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {useCases.map((uc) => (
-            <div class="group rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30 hover:bg-neutral-900">
+            <a
+              href={`/templates/${uc.templateId}`}
+              class="group rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30 hover:bg-neutral-900"
+            >
               <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 font-mono text-sm font-bold text-green-400">
                 {uc.icon}
               </div>
-              <h3 class="text-lg font-semibold text-white">{uc.title}</h3>
+              <h3 class="text-lg font-semibold text-white transition group-hover:text-green-400">{uc.title}</h3>
               <p class="mt-2 text-sm leading-6 text-neutral-400">
                 {uc.description}
               </p>
@@ -76,8 +85,18 @@ export function BuiltFor() {
                   {uc.price}
                 </span>
               </div>
-            </div>
+            </a>
           ))}
+        </div>
+
+        <div class="mt-10 text-center">
+          <a
+            href="/templates"
+            class="inline-flex items-center gap-2 text-sm font-medium text-green-400 transition hover:text-green-300"
+          >
+            View all 17 templates
+            <span>&rarr;</span>
+          </a>
         </div>
       </div>
     </section>

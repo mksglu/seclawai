@@ -33,12 +33,20 @@ export function Success() {
             </a>
             .
           </p>
-          <a
-            href="/"
-            class="mt-8 inline-block text-sm text-neutral-400 transition hover:text-white"
-          >
-            Back to home
-          </a>
+          <div class="mt-8 flex items-center justify-center gap-4">
+            <a
+              href="/dashboard"
+              class="rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+            >
+              Go to Dashboard
+            </a>
+            <a
+              href="/"
+              class="text-sm text-neutral-400 transition hover:text-white"
+            >
+              Back to home
+            </a>
+          </div>
         </div>
       </section>
     </div>

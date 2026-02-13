@@ -24,7 +24,7 @@ export function Home() {
               Stack
             </a>
             <a
-              href="#use-cases"
+              href="/templates"
               class="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
             >
               Templates
@@ -42,12 +42,15 @@ export function Home() {
             >
               GitHub
             </a>
-            <a
-              href="#get-started"
-              class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
-            >
-              Get Started
-            </a>
+            <span id="nav-auth">
+              <button
+                id="nav-login-btn"
+                class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+                onclick="document.getElementById('auth-modal').style.display='flex';document.getElementById('auth-modal').classList.remove('hidden')"
+              >
+                Buy
+              </button>
+            </span>
           </div>
         </div>
       </nav>
@@ -96,6 +99,7 @@ export function Home() {
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

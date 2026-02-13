@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import type { Bindings } from "../app.js";
+import type { AppEnv } from "../app.js";
 import { getTemplateContent } from "../lib/r2.js";
+import { generateLicenseKey } from "../lib/license.js";
 
-const templates = new Hono<{ Bindings: Bindings }>();
+const templates = new Hono<AppEnv>();
 
-// Public catalog — anyone can see what's available
+// Public catalog
 templates.get("/", async (c) => {
   const result = await c.env.DB.prepare(
     "SELECT id, name, description, price_cents, version FROM templates ORDER BY price_cents ASC"
@@ -25,7 +26,7 @@ templates.get("/", async (c) => {
   return c.json(catalog);
 });
 
-// Activate a paid template with license key — returns full template bundle
+// Activate a paid template with license key
 templates.post("/activate", async (c) => {
   const { licenseKey } = await c.req.json<{ licenseKey: string }>();
 
@@ -41,6 +42,7 @@ templates.post("/activate", async (c) => {
       id: string;
       template_id: string;
       activated_at: string | null;
+      expires_at: string | null;
       file_key: string;
       tid: string;
       tname: string;
@@ -50,7 +52,14 @@ templates.post("/activate", async (c) => {
     return c.json({ error: "Invalid license key" }, 400);
   }
 
-  // Mark as activated (allow re-downloads)
+  // Check expiry
+  if (license.expires_at && new Date(license.expires_at) < new Date()) {
+    return c.json({
+      error: "License key expired. Regenerate from your dashboard at seclawai.com/dashboard",
+    }, 403);
+  }
+
+  // Mark as activated
   if (!license.activated_at) {
     await c.env.DB.prepare(
       'UPDATE licenses SET activated_at = datetime("now") WHERE id = ?'
@@ -67,7 +76,6 @@ templates.post("/activate", async (c) => {
     .run();
 
   // Get template bundle from R2
-  // R2 stores a JSON bundle: { workflow, systemPrompt, config, readme }
   const content = await getTemplateContent(
     c.env.TEMPLATE_BUCKET,
     license.file_key
@@ -86,17 +94,53 @@ templates.post("/activate", async (c) => {
   });
 });
 
-// Lookup license key by Stripe session (for success page)
+// Regenerate license key (auth required)
+templates.post("/regenerate", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Authentication required" }, 401);
+  }
+
+  const { licenseId } = await c.req.json<{ licenseId: string }>();
+  if (!licenseId) {
+    return c.json({ error: "licenseId is required" }, 400);
+  }
+
+  // Verify ownership
+  const license = await c.env.DB.prepare(
+    "SELECT id FROM licenses WHERE id = ? AND user_id = ?"
+  )
+    .bind(licenseId, user.id)
+    .first();
+
+  if (!license) {
+    return c.json({ error: "License not found" }, 404);
+  }
+
+  const newKey = generateLicenseKey();
+  const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  await c.env.DB.prepare(
+    "UPDATE licenses SET license_key = ?, expires_at = ?, activated_at = NULL WHERE id = ?"
+  )
+    .bind(newKey, newExpiry, licenseId)
+    .run();
+
+  return c.json({ licenseKey: newKey, expiresAt: newExpiry });
+});
+
+// Lookup license by Stripe session (success page)
 templates.get("/session/:sessionId", async (c) => {
   const sessionId = c.req.param("sessionId");
 
   const license = await c.env.DB.prepare(
-    "SELECT l.license_key, l.template_id, t.name as template_name FROM licenses l JOIN templates t ON l.template_id = t.id WHERE l.stripe_payment_id = ?"
+    "SELECT l.license_key, l.template_id, l.expires_at, t.name as template_name FROM licenses l JOIN templates t ON l.template_id = t.id WHERE l.stripe_payment_id = ?"
   )
     .bind(sessionId)
     .first<{
       license_key: string;
       template_id: string;
+      expires_at: string | null;
       template_name: string;
     }>();
 
@@ -108,6 +152,7 @@ templates.get("/session/:sessionId", async (c) => {
     licenseKey: license.license_key,
     templateId: license.template_id,
     templateName: license.template_name,
+    expiresAt: license.expires_at,
   });
 });
 

@@ -63,17 +63,24 @@ export async function handleWebhook(
       await handleScheduleConfirm(chatId, scheduleId, isApprove, config, inngestClient);
     } else if (data.startsWith("sched_toggle:")) {
       const schedId = data.replace("sched_toggle:", "");
-      if (schedId === "_noop") { /* cancel button — do nothing */ }
-      else await handleScheduleToggle(chatId, schedId, config);
+      const msgId = callback.message?.message_id;
+      if (schedId === "_noop") {
+        if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Cancelled.");
+      } else {
+        await handleScheduleToggle(chatId, msgId, schedId, config);
+      }
     } else if (data.startsWith("sched_run:")) {
       const schedId = data.replace("sched_run:", "");
-      await handleScheduleRun(chatId, schedId, config, toolCtx);
+      const msgId = callback.message?.message_id;
+      await handleScheduleRun(chatId, msgId, schedId, config, toolCtx);
     } else if (data.startsWith("sched_del:")) {
       const schedId = data.replace("sched_del:", "");
-      await handleScheduleDeleteConfirm(chatId, schedId, config);
+      const msgId = callback.message?.message_id;
+      await handleScheduleDeleteConfirm(chatId, msgId, schedId, config);
     } else if (data.startsWith("sched_delok:")) {
       const schedId = data.replace("sched_delok:", "");
-      await handleScheduleDeleteExecute(chatId, schedId, config);
+      const msgId = callback.message?.message_id;
+      await handleScheduleDeleteExecute(chatId, msgId, schedId, config);
     } else if (data.startsWith("confirm_yes:") || data.startsWith("confirm_no:")) {
       const isApprove = data.startsWith("confirm_yes:");
       const confirmId = data.replace(/^confirm_(yes|no):/, "");
@@ -567,33 +574,38 @@ function readScheduleFile(filePath: string): { schedules: Array<{ id: string; cr
   }
 }
 
-async function handleScheduleToggle(chatId: number, scheduleId: string, config: AgentConfig): Promise<void> {
+async function handleScheduleToggle(chatId: number, msgId: number | undefined, scheduleId: string, config: AgentConfig): Promise<void> {
   const loc = findScheduleFile(config.workspace, scheduleId);
   if (!loc) {
-    await sendMessage(config.telegramToken, chatId, `Schedule "${scheduleId}" not found.`);
+    if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Schedule not found.");
     return;
   }
 
   const data = readScheduleFile(loc.filePath);
   if (!data) {
-    await sendMessage(config.telegramToken, chatId, "Failed to read schedule config.");
+    if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Failed to read config.");
     return;
   }
 
   const entry = data.schedules.find((s) => s.id === loc.localId);
   if (!entry) {
-    await sendMessage(config.telegramToken, chatId, `Schedule "${loc.localId}" not found in config.`);
+    if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Schedule not found in config.");
     return;
   }
 
   entry.enabled = entry.enabled === false ? true : false;
   writeFileSync(loc.filePath, JSON.stringify(data, null, 2) + "\n");
 
-  const state = entry.enabled ? "enabled \u2705" : "disabled \u23F8\uFE0F";
-  await sendMessage(config.telegramToken, chatId, `Schedule *${scheduleId}* is now ${state}`);
+  const state = entry.enabled ? "enabled" : "disabled";
+  const icon = entry.enabled ? "\u2705" : "\u23F8\uFE0F";
+  if (msgId) await removeButtons(config.telegramToken, chatId, msgId, `${icon} ${scheduleId} — ${state}`);
+  console.log(`[schedules] ${scheduleId} toggled to ${state}`);
 }
 
-async function handleScheduleRun(chatId: number, scheduleId: string, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+async function handleScheduleRun(chatId: number, msgId: number | undefined, scheduleId: string, config: AgentConfig, toolCtx: ToolContext): Promise<void> {
+  // Hide buttons immediately
+  if (msgId) await removeButtons(config.telegramToken, chatId, msgId, `Running ${scheduleId}...`);
+
   const scheduleConfig = loadScheduleConfig(config.workspace);
   if (!scheduleConfig) {
     await sendMessage(config.telegramToken, chatId, "No schedules configured.");
@@ -612,8 +624,6 @@ async function handleScheduleRun(chatId: number, scheduleId: string, config: Age
     return;
   }
 
-  await sendMessage(config.telegramToken, chatId, `Running *${scheduleId}*...`);
-
   try {
     // Fetch data from Composio tools (if any)
     let fetchedData = "No data sources configured.";
@@ -628,6 +638,7 @@ async function handleScheduleRun(chatId: number, scheduleId: string, config: Age
     // Process with LLM
     const prompt = `${(action as { prompt: string }).prompt}\n\nData:\n${fetchedData}`;
     const response = await runAgent(config, toolCtx, [], prompt);
+    console.log(`[schedules] Run ${scheduleId}: LLM responded (${response.length} chars)`);
 
     // Format and send
     const format = (action as { telegram_format: string }).telegram_format || "{response}";
@@ -637,38 +648,43 @@ async function handleScheduleRun(chatId: number, scheduleId: string, config: Age
 
     await sendMessage(config.telegramToken, chatId, msg);
   } catch (err) {
-    await sendMessage(config.telegramToken, chatId, `Failed to run schedule: ${(err as Error).message}`);
+    console.error(`[schedules] Run ${scheduleId} failed: ${(err as Error).message}`);
+    await sendMessage(config.telegramToken, chatId, `Failed to run: ${(err as Error).message}`);
   }
 }
 
-async function handleScheduleDeleteConfirm(chatId: number, scheduleId: string, config: AgentConfig): Promise<void> {
-  await sendMessageWithButtons(
-    config.telegramToken,
-    chatId,
-    `Delete schedule *${scheduleId}*?`,
-    [[
-      { text: "\u2705 Yes, delete", callback_data: `sched_delok:${scheduleId}` },
-      { text: "\u274C Cancel", callback_data: `sched_toggle:_noop` },
-    ]],
-  );
+async function handleScheduleDeleteConfirm(chatId: number, msgId: number | undefined, scheduleId: string, config: AgentConfig): Promise<void> {
+  // Replace the schedule list with delete confirmation
+  if (msgId) {
+    await editMessageWithButtons(
+      config.telegramToken,
+      chatId,
+      msgId,
+      `Delete schedule "${scheduleId}"?`,
+      [[
+        { text: "\u2705 Yes, delete", callback_data: `sched_delok:${scheduleId}` },
+        { text: "\u274C Cancel", callback_data: `sched_toggle:_noop` },
+      ]],
+    );
+  }
 }
 
-async function handleScheduleDeleteExecute(chatId: number, scheduleId: string, config: AgentConfig): Promise<void> {
+async function handleScheduleDeleteExecute(chatId: number, msgId: number | undefined, scheduleId: string, config: AgentConfig): Promise<void> {
   const loc = findScheduleFile(config.workspace, scheduleId);
   if (!loc) {
-    await sendMessage(config.telegramToken, chatId, `Schedule "${scheduleId}" not found.`);
+    if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Schedule not found.");
     return;
   }
 
   const data = readScheduleFile(loc.filePath);
   if (!data) {
-    await sendMessage(config.telegramToken, chatId, "Failed to read schedule config.");
+    if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Failed to read config.");
     return;
   }
 
   const idx = data.schedules.findIndex((s) => s.id === loc.localId);
   if (idx === -1) {
-    await sendMessage(config.telegramToken, chatId, `Schedule "${loc.localId}" not found in config.`);
+    if (msgId) await removeButtons(config.telegramToken, chatId, msgId, "Schedule not found in config.");
     return;
   }
 
@@ -676,7 +692,29 @@ async function handleScheduleDeleteExecute(chatId: number, scheduleId: string, c
   delete data.actions[removed.action];
   writeFileSync(loc.filePath, JSON.stringify(data, null, 2) + "\n");
 
-  await sendMessage(config.telegramToken, chatId, `Schedule *${scheduleId}* deleted. Restart agent to fully remove cron trigger.`);
+  if (msgId) await removeButtons(config.telegramToken, chatId, msgId, `Deleted: ${scheduleId}`);
+  console.log(`[schedules] ${scheduleId} deleted`);
+}
+
+async function editMessageWithButtons(
+  token: string,
+  chatId: number,
+  messageId: number,
+  text: string,
+  keyboard: Array<Array<{ text: string; callback_data: string }>>,
+): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        reply_markup: { inline_keyboard: keyboard },
+      }),
+    });
+  } catch { /* ignore */ }
 }
 
 /* ── /capabilities command ────────────────────────────────────── */

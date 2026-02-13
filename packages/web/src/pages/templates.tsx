@@ -11,6 +11,15 @@ export function Templates() {
           <div class="flex items-center gap-6">
             <a href="/" class="text-sm text-neutral-400 transition hover:text-white">Home</a>
             <a href="/docs" class="text-sm text-neutral-400 transition hover:text-white">Docs</a>
+            <span id="nav-auth">
+              <button
+                id="nav-login-btn"
+                class="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+                onclick="document.getElementById('auth-modal').style.display='flex'"
+              >
+                Buy
+              </button>
+            </span>
           </div>
         </div>
       </nav>
@@ -26,9 +35,10 @@ export function Templates() {
 
           <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {TEMPLATES.map((t) => (
-              <div
+              <a
+                href={`/templates/${t.id}`}
                 id={t.id}
-                class="flex flex-col rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30"
+                class="group flex flex-col rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30"
               >
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-medium text-neutral-500 uppercase">
@@ -45,7 +55,9 @@ export function Templates() {
                   </span>
                 </div>
 
-                <h3 class="mt-4 text-lg font-semibold text-white">{t.name}</h3>
+                <h3 class="mt-4 text-lg font-semibold text-white transition group-hover:text-green-400">
+                  {t.name}
+                </h3>
                 <p class="mt-1 text-sm italic text-green-400/80">"{t.hook}"</p>
                 <p class="mt-3 flex-1 text-sm leading-6 text-neutral-400">
                   {t.description}
@@ -60,28 +72,16 @@ export function Templates() {
                   ))}
                 </ul>
 
-                <div class="mt-6">
-                  {t.tier === "free" ? (
-                    <a
-                      href="/#get-started"
-                      class="block w-full rounded-lg bg-green-500 py-2.5 text-center text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
-                    >
-                      Get Started — Free
-                    </a>
-                  ) : (
-                    <button
-                      data-template={t.id}
-                      class="block w-full rounded-lg border border-neutral-700 bg-neutral-800 py-2.5 text-center text-sm font-semibold text-white transition hover:border-green-500/30 hover:bg-neutral-700"
-                    >
-                      Buy {t.price}
-                    </button>
-                  )}
+                <div class="mt-6 text-center text-sm font-medium text-neutral-500 transition group-hover:text-green-400">
+                  {t.tier === "free" ? "Get Started — Free" : `${t.price} — View Details`}
+                  <span class="ml-1 inline-block transition-transform group-hover:translate-x-1">&rarr;</span>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
       </section>
+
     </div>
   );
 }

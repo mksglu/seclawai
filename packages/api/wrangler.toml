@@ -2,7 +2,9 @@ name = "seclaw-api"
 main = "src/app.tsx"
 compatibility_date = "2025-12-01"
 compatibility_flags = ["nodejs_compat"]
-assets = { directory = "./public" }
+
+[assets]
+directory = "./public"
 
 [dev]
 port = 8788
@@ -18,3 +20,4 @@ bucket_name = "seclaw-templates"
 
 [vars]
 CORS_ORIGIN = "https://seclawai.com"
+BETTER_AUTH_URL = "https://seclawai.com"

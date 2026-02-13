@@ -1,3 +1,12 @@
 # Stripe test keys — get from https://dashboard.stripe.com/test/apikeys
 STRIPE_SECRET_KEY=sk_test_your_test_key_here
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# Auth — get from https://console.cloud.google.com/apis/credentials
+BETTER_AUTH_URL=http://localhost:8788
+BETTER_AUTH_SECRET=generate-a-random-secret
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Email — get from https://resend.com/api-keys
+RESEND_API_KEY=re_your_resend_key
