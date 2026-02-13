@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app.js";
-import { getTemplateContent } from "../lib/r2.js";
+import { getTemplateFromGitHub } from "../lib/github.js";
 import { generateToken, generateTokenId, generatePurchaseId } from "../lib/license.js";
 import { createStripeClient } from "../lib/stripe.js";
 import { sendTokenEmail } from "../lib/email.js";
@@ -54,10 +54,10 @@ templates.post("/activate", async (c) => {
     return c.json({ error: "You don't own this template. Purchase it at seclawai.com/templates" }, 403);
   }
 
-  // Get template file_key
+  // Get template name
   const template = await c.env.DB.prepare(
-    "SELECT file_key, name FROM templates WHERE id = ?"
-  ).bind(templateId).first<{ file_key: string; name: string }>();
+    "SELECT name FROM templates WHERE id = ?"
+  ).bind(templateId).first<{ name: string }>();
 
   if (!template) {
     return c.json({ error: "Template not found" }, 404);
@@ -68,14 +68,12 @@ templates.post("/activate", async (c) => {
     "INSERT INTO downloads (token_id, template_id, ip) VALUES (?, ?, ?)"
   ).bind(tokenRow.id, templateId, c.req.header("cf-connecting-ip") || "unknown").run();
 
-  // Get template bundle from R2
-  const content = await getTemplateContent(c.env.TEMPLATE_BUCKET, template.file_key);
+  // Get template files from GitHub
+  const bundle = await getTemplateFromGitHub(c.env.GITHUB_PAT, templateId);
 
-  if (!content) {
-    return c.json({ error: "Template file not found" }, 500);
+  if (!bundle) {
+    return c.json({ error: "Template files not found" }, 500);
   }
-
-  const bundle = JSON.parse(content) as Record<string, string>;
 
   return c.json({
     templateId,

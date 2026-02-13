@@ -25,6 +25,7 @@ export type Bindings = {
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   RESEND_API_KEY: string;
+  GITHUB_PAT: string;
 };
 
 type Variables = {
