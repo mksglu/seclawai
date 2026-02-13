@@ -141,24 +141,39 @@ export async function runAgent(
     const callStart = Date.now();
     try {
       const hasTools = tools.length > 0;
-
-      response = await client.chat.completions.create({
+      const baseParams = {
         model,
         messages: messages as OpenAI.ChatCompletionMessageParam[],
         tools: hasTools ? tools as OpenAI.ChatCompletionTool[] : undefined,
         temperature: 0.7,
         max_tokens: 2048,
-        // @ts-expect-error OpenRouter extended params — disable thinking for faster responses
-        reasoning: { effort: "none" },
-      });
+      };
+
+      try {
+        response = await client.chat.completions.create({
+          ...baseParams,
+          // @ts-expect-error OpenRouter extended params — disable thinking for faster responses
+          reasoning: { effort: "none" },
+        });
+      } catch (innerErr) {
+        const e = innerErr as { status?: number; error?: { code?: string | number } };
+        // If 400 Bad Request, it might be due to the 'reasoning' param not being supported (e.g. Gemini)
+        // Self-correct by retrying without it.
+        if (e.status === 400 || e.error?.code === 400 || (e as any).statusText === "Bad Request") {
+          console.warn(`[llm] 400 Bad Request detected. Retrying without 'reasoning' param...`);
+          response = await client.chat.completions.create(baseParams);
+        } else {
+          throw innerErr;
+        }
+      }
     } catch (err) {
       const e = err as Error & { status?: number; error?: unknown; code?: string; body?: unknown; headers?: unknown };
       console.error(`[llm] API error: status=${e.status || "?"} code=${e.code || "?"} message=${e.message}`);
+      
       // OpenAI SDK puts error details in .error or .body
       if (e.error) console.error(`[llm] Error body:`, JSON.stringify(e.error).substring(0, 500));
       if (e.body) console.error(`[llm] Response body:`, JSON.stringify(e.body).substring(0, 500));
-      // Log full stringified error as fallback
-      try { console.error(`[llm] Full error:`, JSON.stringify(err, Object.getOwnPropertyNames(err as object)).substring(0, 1000)); } catch { /* */ }
+      
       if (config.llmProvider === "anthropic" && config.llmApiKey.startsWith("sk-ant-")) {
         return await runAnthropicDirect(config, messages, tools, toolCtx);
       }

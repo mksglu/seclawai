@@ -47,15 +47,18 @@ async function fetchTunnelUrlFromLogs(cwd: string): Promise<string | null> {
   try {
     const result = await execa(
       "docker",
-      ["compose", "logs", "cloudflared", "--no-log-prefix"],
+      ["compose", "logs", "cloudflared", "--no-log-prefix", "--tail", "50"],
       { cwd, env: { ...process.env, COMPOSE_PROJECT_NAME: "seclaw" } }
     );
 
     const combined = result.stdout + "\n" + result.stderr;
-    const match = combined.match(
-      /https:\/\/[a-z0-9-]+\.trycloudflare\.com/
+    // Find ALL matches, not just the first one
+    const matches = combined.match(
+      /https:\/\/[a-z0-9-]+\.trycloudflare\.com/g
     );
-    return match ? match[0] : null;
+    
+    // Return the LAST match found (most recent tunnel)
+    return matches && matches.length > 0 ? matches[matches.length - 1] : null;
   } catch {
     return null;
   }

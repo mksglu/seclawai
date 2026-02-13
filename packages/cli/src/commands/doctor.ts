@@ -157,7 +157,8 @@ async function getContainerName(projectDir: string, service: string): Promise<st
 function getProjectName(projectDir: string): string {
   // Match what docker compose would use — directory name, lowercased, special chars removed
   const base = projectDir.split("/").pop() || "seclaw";
-  return base.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const name = base.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return name === "cli" ? "seclaw" : name;
 }
 
 async function checkContainers(
@@ -262,13 +263,13 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
   try {
     const result = await execa(
       "docker",
-      ["compose", "logs", "cloudflared", "--no-log-prefix"],
+      ["compose", "logs", "cloudflared", "--no-log-prefix", "--tail", "50"],
       { cwd: projectDir, env: { ...process.env, COMPOSE_PROJECT_NAME: getProjectName(projectDir) } }
     );
     const combined = result.stdout + "\n" + result.stderr;
-    const match = combined.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    const matches = combined.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g);
 
-    if (!match) {
+    if (!matches || matches.length === 0) {
       return {
         name: "Tunnel",
         ok: false,
@@ -283,7 +284,7 @@ async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUr
       };
     }
 
-    const tunnelUrl = match[0];
+    const tunnelUrl = matches[matches.length - 1];
 
     try {
       const res = await fetch(`${tunnelUrl}/health`, {

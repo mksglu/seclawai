@@ -56,3 +56,9 @@ commander/
 docker-compose.yml
 permissions.yml
 package-lock.json
+
+# Local temporary files
+.tunnel-url
+packages/cli/.tunnel-url
+packages/cli/shared/
+**/shared/memory/
