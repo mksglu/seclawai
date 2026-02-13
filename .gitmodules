@@ -1,0 +1,3 @@
+[submodule "packages/templates/paid"]
+	path = packages/templates/paid
+	url = https://github.com/mksglu/seclawai-paid.git
