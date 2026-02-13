@@ -13,25 +13,29 @@ type Env = { Bindings: { API_URL: string } };
 
 const app = new Hono<Env>();
 
-// Proxy /api/* to API worker (dev: localhost:8788, prod: api.seclawai.com)
+// Proxy /api/* to API worker
 app.all("/api/*", async (c) => {
-  const apiBase = c.env.API_URL || "http://localhost:8788";
+  const apiBase = c.env.API_URL;
   const url = new URL(c.req.url);
   const target = `${apiBase}${url.pathname}${url.search}`;
 
   const headers = new Headers(c.req.raw.headers);
   headers.set("X-Forwarded-Host", url.host);
 
-  const res = await fetch(target, {
-    method: c.req.method,
-    headers,
-    body: c.req.method !== "GET" && c.req.method !== "HEAD" ? c.req.raw.body : undefined,
-  });
+  try {
+    const res = await fetch(target, {
+      method: c.req.method,
+      headers,
+      body: c.req.method !== "GET" && c.req.method !== "HEAD" ? c.req.raw.body : undefined,
+    });
 
-  return new Response(res.body, {
-    status: res.status,
-    headers: res.headers,
-  });
+    return new Response(res.body, {
+      status: res.status,
+      headers: res.headers,
+    });
+  } catch {
+    return c.json({ error: "API unavailable" }, 502);
+  }
 });
 
 // Pages

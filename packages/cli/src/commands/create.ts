@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
-import { cp } from "node:fs/promises";
+import { cp, mkdir } from "node:fs/promises";
 import * as p from "@clack/prompts";
 import { execa } from "execa";
 import pc from "picocolors";
@@ -11,6 +11,17 @@ import { checkDocker, stopExistingSeclaw, findRunningSeclaw, findProjectDir } fr
 
 export async function create(directory: string) {
   let targetDir = resolve(process.cwd(), directory);
+
+  // --- Ensure target directory exists ---
+  try {
+    await mkdir(targetDir, { recursive: true });
+  } catch (err) {
+    p.intro(`${pc.bgCyan(pc.black(" seclaw "))}`);
+    p.log.error(`Cannot create directory: ${pc.cyan(targetDir)}`);
+    p.log.info(pc.dim(err instanceof Error ? err.message : String(err)));
+    p.outro(`Try a different path, e.g.: ${pc.cyan(`npx seclaw create ./${directory.replace(/^\/+/, "")}`)}`);
+    return;
+  }
 
   // --- Pre-flight: Docker check ---
   const docker = await checkDocker();
@@ -56,38 +67,66 @@ export async function create(directory: string) {
 
   // 1. Stop old containers
   s.start("Preparing environment...");
-  await stopExistingSeclaw();
-  s.stop("Environment ready.");
+  try {
+    await stopExistingSeclaw();
+    s.stop("Environment ready.");
+  } catch (err) {
+    s.stop("Warning: could not stop existing containers.");
+    p.log.warn(err instanceof Error ? err.message : String(err));
+  }
 
   // 2. Scaffold project files
   s.start("Creating project files...");
-  await scaffoldProject(targetDir, answers);
-  s.stop("Project files created.");
+  try {
+    await scaffoldProject(targetDir, answers);
+    s.stop("Project files created.");
+  } catch (err) {
+    s.stop("Failed to create project files.");
+    p.log.error(err instanceof Error ? err.message : String(err));
+    if (err instanceof Error && err.stack) {
+      p.log.info(pc.dim(err.stack));
+    }
+    p.outro("Fix the issue above and try again.");
+    return;
+  }
 
   // 3. Copy template system prompt
   if (answers.template !== "blank") {
     s.start(`Copying template: ${answers.template}...`);
-    const templateSrc = getTemplatePath(answers.template, targetDir);
-    if (templateSrc && existsSync(templateSrc)) {
-      await cp(templateSrc, resolve(targetDir, "templates", answers.template), {
-        recursive: true,
-      });
+    try {
+      const templateSrc = getTemplatePath(answers.template, targetDir);
+      const templateDest = resolve(targetDir, "templates", answers.template);
 
-      // Also copy system-prompt.md to shared/config for the agent to find
-      const promptSrc = resolve(templateSrc, "system-prompt.md");
-      if (existsSync(promptSrc)) {
-        await cp(promptSrc, resolve(targetDir, "shared", "config", "system-prompt.md"));
+      if (templateSrc && existsSync(templateSrc)) {
+        // Only copy if source != destination (skip for already-installed templates)
+        if (resolve(templateSrc) !== resolve(templateDest)) {
+          await cp(templateSrc, templateDest, { recursive: true });
+        }
+
+        // Copy system-prompt.md to shared/config for the agent to find
+        const promptSrc = resolve(templateSrc, "system-prompt.md");
+        if (existsSync(promptSrc)) {
+          await cp(promptSrc, resolve(targetDir, "shared", "config", "system-prompt.md"));
+        }
+
+        // Copy schedules.json to shared/config for the scheduler to find
+        const schedulesSrc = resolve(templateSrc, "schedules.json");
+        if (existsSync(schedulesSrc)) {
+          await cp(schedulesSrc, resolve(targetDir, "shared", "config", "schedules.json"));
+        }
+
+        s.stop(`Template ready.`);
+      } else {
+        s.stop("Template will be available after setup.");
       }
-
-      // Copy schedules.json to shared/config for the scheduler to find
-      const schedulesSrc = resolve(templateSrc, "schedules.json");
-      if (existsSync(schedulesSrc)) {
-        await cp(schedulesSrc, resolve(targetDir, "shared", "config", "schedules.json"));
+    } catch (err) {
+      s.stop("Failed to copy template.");
+      p.log.error(err instanceof Error ? err.message : String(err));
+      if (err instanceof Error && err.stack) {
+        p.log.info(pc.dim(err.stack));
       }
-
-      s.stop(`Template ready.`);
-    } else {
-      s.stop("Template will be available after setup.");
+      p.outro("Fix the issue above and try again.");
+      return;
     }
   }
 
@@ -216,33 +255,34 @@ function showSuccess(
   provider?: string,
   composioKey?: string,
 ) {
+  const label = (s: string) => pc.white(pc.bold(s));
   const lines = [
-    `${pc.green("Your AI agent is live!")}`,
+    `${pc.green(pc.bold("Your AI agent is live!"))}`,
     "",
   ];
 
   if (tunnelUrl) {
-    lines.push(`${pc.dim("Public URL:")} ${pc.cyan(tunnelUrl)}`);
+    lines.push(`${label("Public URL:")} ${pc.cyan(tunnelUrl)}`);
   }
 
   if (botName) {
-    lines.push(`${pc.dim("Telegram:")}   Open ${pc.green(botName)} and send a message`);
+    lines.push(`${label("Telegram:")}   Open ${pc.green(botName)} and send a message`);
   }
 
-  lines.push(`${pc.dim("Workspace:")}  ${targetDir}/shared/`);
+  lines.push(`${label("Workspace:")}  ${pc.white(targetDir + "/shared/")}`);
 
   if (provider) {
     const info = PROVIDER_LABELS[provider];
     if (info) {
-      lines.push(`${pc.dim("Model:")}      ${pc.yellow(info.model)}`);
-      lines.push(`${pc.dim("Est. cost:")}  ${pc.yellow(info.cost)}`);
+      lines.push(`${label("Model:")}      ${pc.cyan(info.model)}`);
+      lines.push(`${label("Est. cost:")}  ${pc.green(info.cost)}`);
     }
   }
 
   if (composioKey) {
-    lines.push(`${pc.dim("Composio:")}   ${pc.green("Connected")} — run ${pc.cyan("npx seclaw integrations")} to add Gmail, etc.`);
+    lines.push(`${label("Composio:")}   ${pc.green("Connected")} — run ${pc.cyan("npx seclaw integrations")} to add Gmail, etc.`);
   } else {
-    lines.push(`${pc.dim("Composio:")}   ${pc.yellow("Skipped")} — run ${pc.cyan("npx seclaw integrations")} later to add integrations`);
+    lines.push(`${label("Composio:")}   ${pc.yellow("Skipped")} — run ${pc.cyan("npx seclaw integrations")} later to add integrations`);
   }
 
   p.note(lines.join("\n"), "seclaw");
@@ -254,7 +294,7 @@ function showSuccess(
     );
   }
 
-  p.outro(`${pc.dim("Manage:")} npx seclaw status | stop | integrations`);
+  p.outro(`${pc.white("Manage:")} npx seclaw status | stop | integrations`);
 }
 
 function getTemplatePath(template: string, targetDir?: string): string | null {

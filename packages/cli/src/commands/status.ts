@@ -67,15 +67,15 @@ export async function status() {
       if (agentRes.stdout.includes("ok")) agentOk = true;
     } catch { /* not ready */ }
     infoLines.push(
-      `${pc.dim("Agent:")}     ${agentOk ? pc.green("healthy") : pc.yellow("starting...")}`
+      `${pc.white(pc.bold("Agent:"))}     ${agentOk ? pc.green("healthy") : pc.yellow("starting...")}`
     );
 
     // Tunnel URL
     const tunnelUrl = await getTunnelUrl(projectDir, 3);
     if (tunnelUrl) {
-      infoLines.push(`${pc.dim("Public URL:")} ${pc.cyan(tunnelUrl)}`);
+      infoLines.push(`${pc.white(pc.bold("Public URL:"))} ${pc.cyan(tunnelUrl)}`);
     } else {
-      infoLines.push(`${pc.dim("Public URL:")} ${pc.yellow("not detected yet")}`);
+      infoLines.push(`${pc.white(pc.bold("Public URL:"))} ${pc.yellow("not detected yet")}`);
     }
 
     // Telegram bot from .env
@@ -88,10 +88,10 @@ export async function status() {
           const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
           const data = (await res.json()) as { ok: boolean; result?: { username: string } };
           if (data.ok && data.result) {
-            infoLines.push(`${pc.dim("Telegram:")}   ${pc.green("@" + data.result.username)}`);
+            infoLines.push(`${pc.white(pc.bold("Telegram:"))}   ${pc.green("@" + data.result.username)}`);
           }
         } catch {
-          infoLines.push(`${pc.dim("Telegram:")}   ${pc.green("configured")}`);
+          infoLines.push(`${pc.white(pc.bold("Telegram:"))}   ${pc.green("configured")}`);
         }
       }
     } catch { /* no .env or no token */ }
@@ -100,17 +100,17 @@ export async function status() {
     try {
       const env = await readFile(resolve(projectDir, ".env"), "utf-8");
       if (env.includes("COMPOSIO_API_KEY=")) {
-        infoLines.push(`${pc.dim("Composio:")}   ${pc.green("configured")}`);
+        infoLines.push(`${pc.white(pc.bold("Composio:"))}   ${pc.green("configured")}`);
       }
     } catch { /* */ }
 
-    infoLines.push(`${pc.dim("Workspace:")}  ${resolve(projectDir, "shared")}`);
-    infoLines.push(`${pc.dim("Project:")}   ${projectDir}`);
+    infoLines.push(`${pc.white(pc.bold("Workspace:"))}  ${resolve(projectDir, "shared")}`);
+    infoLines.push(`${pc.white(pc.bold("Project:"))}   ${projectDir}`);
 
     p.note(infoLines.join("\n"), "seclaw");
   } catch {
     p.log.error("Could not check status. Is Docker running?");
   }
 
-  p.outro(`${pc.dim("Manage:")} npx seclaw stop | integrations | upgrade`);
+  p.outro(`${pc.white("Manage:")} npx seclaw stop | integrations | upgrade`);
 }

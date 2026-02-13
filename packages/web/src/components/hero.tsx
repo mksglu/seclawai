@@ -21,7 +21,7 @@ export function Hero() {
         <div className="mt-10 flex items-center justify-center gap-4">
           <a
             href="#get-started"
-            className="rounded-lg bg-green-500 px-6 py-3 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-green-400"
+            className="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-100"
           >
             Get Started — Free
           </a>

@@ -4,11 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup types.ts --format esm --dts --clean && mkdir -p dist/free dist/paid && (cp -r free/. dist/free/ 2>/dev/null || true) && (cp -r paid/. dist/paid/ 2>/dev/null || true)",
+    "build": "tsc && mkdir -p dist/free dist/paid && (cp -r free/. dist/free/ 2>/dev/null || true) && (cp -r paid/. dist/paid/ 2>/dev/null || true)",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "tsup": "^8.0.0",
     "typescript": "^5.5.0"
   }
 }

@@ -11,43 +11,6 @@ import { Pricing } from "../components/pricing.js";
 export function Home() {
   return (
     <div>
-      {/* Nav */}
-      <nav className="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" className="font-mono text-sm font-bold text-white">
-            seclaw
-          </a>
-          <div className="flex items-center gap-6">
-            <a
-              href="#architecture"
-              className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
-            >
-              Stack
-            </a>
-            <a
-              href="/templates"
-              className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
-            >
-              Templates
-            </a>
-            <a
-              href="/docs"
-              className="hidden text-sm text-neutral-400 transition hover:text-white sm:block"
-            >
-              Docs
-            </a>
-            <a
-              href="https://github.com/seclaw/seclaw"
-              className="text-sm text-neutral-400 transition hover:text-white"
-              target="_blank"
-            >
-              GitHub
-            </a>
-            <span id="nav-auth" />
-          </div>
-        </div>
-      </nav>
-
       {/* Sections — story flow */}
       <Hero />
       <Quotes />

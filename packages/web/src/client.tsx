@@ -9,7 +9,9 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
 
-const API = ""; // same-origin — single worker serves both pages and API
+// Dev: direct to API worker (bypasses Wrangler Worker runtime fetch limitation)
+// Prod: same-origin proxy handles /api/* forwarding
+const API = window.location.hostname === "localhost" ? "http://localhost:8788" : "";
 
 // --- Google SVG Icon ---
 
@@ -192,7 +194,7 @@ function NavAuth() {
     return (
       <a
         href="/dashboard"
-        className="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+        className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
       >
         Dashboard
       </a>
@@ -321,7 +323,7 @@ function DashboardContent() {
         <p className="text-neutral-400">Sign in to view your dashboard.</p>
         <a
           href="/"
-          className="mt-4 inline-block rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+          className="mt-4 inline-block rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
         >
           Go Home
         </a>
@@ -415,7 +417,7 @@ function DashboardContent() {
           <p className="text-neutral-400">No templates purchased yet.</p>
           <a
             href="/templates"
-            className="mt-4 inline-block rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+            className="mt-4 inline-block rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
           >
             Browse Templates
           </a>
