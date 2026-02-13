@@ -23,7 +23,7 @@ function daysUntil(dateStr: string): number {
 function ExpiryBadge({ expiresAt }: { expiresAt: string | null }) {
   if (!expiresAt) {
     return (
-      <span class="rounded-full bg-neutral-800 px-2.5 py-0.5 text-xs text-neutral-400">
+      <span className="rounded-full bg-neutral-800 px-2.5 py-0.5 text-xs text-neutral-400">
         No expiry
       </span>
     );
@@ -31,20 +31,20 @@ function ExpiryBadge({ expiresAt }: { expiresAt: string | null }) {
   const days = daysUntil(expiresAt);
   if (days <= 0) {
     return (
-      <span class="rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400">
+      <span className="rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400">
         Expired
       </span>
     );
   }
   if (days <= 2) {
     return (
-      <span class="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
+      <span className="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
         {days}d left
       </span>
     );
   }
   return (
-    <span class="rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-400">
+    <span className="rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-400">
       {days}d left
     </span>
   );
@@ -54,44 +54,44 @@ function LicenseCard({ license }: { license: License }) {
   const expired = license.expires_at ? daysUntil(license.expires_at) <= 0 : false;
 
   return (
-    <div class="rounded-xl border border-neutral-800 bg-neutral-900/50 p-6">
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-white">{license.template_name}</h3>
+    <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">{license.template_name}</h3>
         <ExpiryBadge expiresAt={license.expires_at} />
       </div>
 
       {expired ? (
-        <div class="mt-4">
-          <p class="text-sm text-neutral-400">
+        <div className="mt-4">
+          <p className="text-sm text-neutral-400">
             Your key has expired. Regenerate to continue using this template.
           </p>
           <button
             data-regenerate={license.id}
-            class="mt-3 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+            className="mt-3 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
           >
             Regenerate Key
           </button>
         </div>
       ) : (
-        <div class="mt-4 space-y-3">
+        <div className="mt-4 space-y-3">
           <div>
-            <p class="mb-1 text-xs text-neutral-500">License Key</p>
-            <div class="flex items-center gap-2">
+            <p className="mb-1 text-xs text-neutral-500">License Key</p>
+            <div className="flex items-center gap-2">
               <code
                 data-key={license.license_key}
-                class="key-masked flex-1 cursor-pointer rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 font-mono text-sm text-green-400 transition hover:border-green-500/30"
+                className="key-masked flex-1 cursor-pointer rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 font-mono text-sm text-green-400 transition hover:border-green-500/30"
               >
                 {"*".repeat(8)}...{"*".repeat(8)}
               </code>
               <button
                 data-reveal={license.license_key}
-                class="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:text-white"
+                className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:text-white"
               >
                 Reveal
               </button>
               <button
                 data-copy={license.license_key}
-                class="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:text-white"
+                className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:text-white"
               >
                 Copy
               </button>
@@ -99,14 +99,14 @@ function LicenseCard({ license }: { license: License }) {
           </div>
 
           <div>
-            <p class="mb-1 text-xs text-neutral-500">Install Command</p>
-            <div class="flex items-center gap-2">
-              <code class="flex-1 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 font-mono text-xs text-green-400">
+            <p className="mb-1 text-xs text-neutral-500">Install Command</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 font-mono text-xs text-green-400">
                 npx seclaw add {license.template_id} --key {license.license_key}
               </code>
               <button
                 data-copy={`npx seclaw add ${license.template_id} --key ${license.license_key}`}
-                class="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:text-white"
+                className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:text-white"
               >
                 Copy
               </button>
@@ -115,7 +115,7 @@ function LicenseCard({ license }: { license: License }) {
 
           <button
             data-regenerate={license.id}
-            class="text-xs text-neutral-500 transition hover:text-neutral-300"
+            className="text-xs text-neutral-500 transition hover:text-neutral-300"
           >
             Regenerate key
           </button>
@@ -128,33 +128,33 @@ function LicenseCard({ license }: { license: License }) {
 export function Dashboard({ user, licenses }: DashboardProps) {
   return (
     <div>
-      <nav class="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
-        <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" class="font-mono text-sm font-bold text-white">
+      <nav className="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <a href="/" className="font-mono text-sm font-bold text-white">
             seclaw
           </a>
-          <div class="flex items-center gap-6">
-            <a href="/templates" class="text-sm text-neutral-400 transition hover:text-white">
+          <div className="flex items-center gap-6">
+            <a href="/templates" className="text-sm text-neutral-400 transition hover:text-white">
               Templates
             </a>
-            <a href="/docs" class="text-sm text-neutral-400 transition hover:text-white">
+            <a href="/docs" className="text-sm text-neutral-400 transition hover:text-white">
               Docs
             </a>
-            <div class="flex items-center gap-3">
+            <div className="flex items-center gap-3">
               {user.image ? (
                 <img
                   src={user.image}
                   alt=""
-                  class="h-7 w-7 rounded-full border border-neutral-700"
+                  className="h-7 w-7 rounded-full border border-neutral-700"
                 />
               ) : (
-                <div class="flex h-7 w-7 items-center justify-center rounded-full bg-green-500/10 text-xs font-semibold text-green-400">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500/10 text-xs font-semibold text-green-400">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <button
                 id="signout-btn"
-                class="text-xs text-neutral-500 transition hover:text-white"
+                className="text-xs text-neutral-500 transition hover:text-white"
               >
                 Sign out
               </button>
@@ -163,31 +163,31 @@ export function Dashboard({ user, licenses }: DashboardProps) {
         </div>
       </nav>
 
-      <section class="px-6 pt-32 pb-24 lg:px-8">
-        <div class="mx-auto max-w-3xl">
-          <div class="mb-8">
-            <h1 class="text-2xl font-bold text-white">
+      <section className="px-6 pt-32 pb-24 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-white">
               Welcome back, {user.name.split(" ")[0]}
             </h1>
-            <p class="mt-1 text-sm text-neutral-400">{user.email}</p>
+            <p className="mt-1 text-sm text-neutral-400">{user.email}</p>
           </div>
 
           {licenses.length === 0 ? (
-            <div class="rounded-xl border border-neutral-800 bg-neutral-900/50 p-12 text-center">
-              <p class="text-neutral-400">No templates purchased yet.</p>
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-12 text-center">
+              <p className="text-neutral-400">No templates purchased yet.</p>
               <a
                 href="/templates"
-                class="mt-4 inline-block rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+                className="mt-4 inline-block rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
               >
                 Browse Templates
               </a>
             </div>
           ) : (
             <div>
-              <h2 class="mb-4 text-sm font-medium text-neutral-400">
+              <h2 className="mb-4 text-sm font-medium text-neutral-400">
                 Your Templates ({licenses.length})
               </h2>
-              <div class="space-y-4">
+              <div className="space-y-4">
                 {licenses.map((l) => (
                   <LicenseCard license={l} />
                 ))}

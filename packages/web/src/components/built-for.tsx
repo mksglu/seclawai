@@ -57,31 +57,31 @@ const useCases = [
 
 export function BuiltFor() {
   return (
-    <section class="px-6 py-24 lg:px-8" id="use-cases">
-      <div class="mx-auto max-w-6xl">
-        <h2 class="text-center text-3xl font-bold text-white sm:text-4xl">
+    <section className="px-6 py-24 lg:px-8" id="use-cases">
+      <div className="mx-auto max-w-6xl">
+        <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
           Built for how you work
         </h2>
-        <p class="mt-4 text-center text-lg text-neutral-400">
+        <p className="mt-4 text-center text-lg text-neutral-400">
           17 agent templates from $0 to $149. Scheduled tasks, human-in-the-loop approval, real integrations.
         </p>
 
-        <div class="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {useCases.map((uc) => (
             <a
               href={`/templates/${uc.templateId}`}
-              class="group rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30 hover:bg-neutral-900"
+              className="group rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30 hover:bg-neutral-900"
             >
-              <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 font-mono text-sm font-bold text-green-400">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 font-mono text-sm font-bold text-green-400">
                 {uc.icon}
               </div>
-              <h3 class="text-lg font-semibold text-white transition group-hover:text-green-400">{uc.title}</h3>
-              <p class="mt-2 text-sm leading-6 text-neutral-400">
+              <h3 className="text-lg font-semibold text-white transition group-hover:text-green-400">{uc.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-400">
                 {uc.description}
               </p>
-              <div class="mt-4 flex items-center justify-between">
-                <span class="text-sm text-neutral-500">{uc.template}</span>
-                <span class="text-sm font-semibold text-green-400">
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-sm text-neutral-500">{uc.template}</span>
+                <span className="text-sm font-semibold text-green-400">
                   {uc.price}
                 </span>
               </div>
@@ -89,10 +89,10 @@ export function BuiltFor() {
           ))}
         </div>
 
-        <div class="mt-10 text-center">
+        <div className="mt-10 text-center">
           <a
             href="/templates"
-            class="inline-flex items-center gap-2 text-sm font-medium text-green-400 transition hover:text-green-300"
+            className="inline-flex items-center gap-2 text-sm font-medium text-green-400 transition hover:text-green-300"
           >
             View all 17 templates
             <span>&rarr;</span>

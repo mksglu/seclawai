@@ -45,26 +45,26 @@ export function OpenClawProblems() {
   ];
 
   return (
-    <section class="px-6 py-24 lg:px-8">
-      <div class="mx-auto max-w-5xl">
-        <p class="text-center text-sm font-medium uppercase tracking-wider text-red-400">
+    <section className="px-6 py-24 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <p className="text-center text-sm font-medium uppercase tracking-wider text-red-400">
           Why we built seclaw
         </p>
-        <h2 class="mt-4 text-center text-3xl font-bold text-white sm:text-4xl">
-          OpenClaw has <span class="text-red-400">serious security holes</span>
+        <h2 className="mt-4 text-center text-3xl font-bold text-white sm:text-4xl">
+          OpenClaw has <span className="text-red-400">serious security holes</span>
         </h2>
-        <p class="mx-auto mt-4 max-w-2xl text-center text-lg text-neutral-400">
+        <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-neutral-400">
           68K+ stars on GitHub. Zero container isolation. Your API keys, SSH keys,
           and browser cookies — all accessible to any tool the agent decides to install.
         </p>
 
-        <div class="mt-16 grid gap-4 sm:grid-cols-2">
+        <div className="mt-16 grid gap-4 sm:grid-cols-2">
           {bugs.map((bug) => (
-            <div class="rounded-xl border border-red-500/10 bg-red-500/5 p-6">
-              <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-white">{bug.title}</h3>
+            <div className="rounded-xl border border-red-500/10 bg-red-500/5 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">{bug.title}</h3>
                 <span
-                  class={
+                  className={
                     bug.severity === "Critical"
                       ? "rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400"
                       : bug.severity === "High"
@@ -75,17 +75,17 @@ export function OpenClawProblems() {
                   {bug.severity}
                 </span>
               </div>
-              <p class="mt-2 text-sm leading-6 text-neutral-400">
+              <p className="mt-2 text-sm leading-6 text-neutral-400">
                 {bug.description}
               </p>
-              <div class="mt-3 rounded-md bg-neutral-950/50 px-3 py-2 font-mono text-xs text-red-400/70">
+              <div className="mt-3 rounded-md bg-neutral-950/50 px-3 py-2 font-mono text-xs text-red-400/70">
                 {bug.code}
               </div>
             </div>
           ))}
         </div>
 
-        <p class="mt-8 text-center text-sm text-neutral-500">
+        <p className="mt-8 text-center text-sm text-neutral-500">
           These aren't theoretical — they're in the default docker-compose.yml
           that 68K+ people cloned.
         </p>

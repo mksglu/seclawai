@@ -6,6 +6,9 @@
   "assets": {
     "directory": "./public"
   },
+  "routes": [
+    { "pattern": "seclawai.com", "custom_domain": true }
+  ],
   "dev": {
     "port": 8788
   },
