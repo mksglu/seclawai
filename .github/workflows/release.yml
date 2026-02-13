@@ -9,13 +9,15 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
-  id-token: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
 
       - uses: pnpm/action-setup@v4
         with:
@@ -23,20 +25,18 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-          cache: "pnpm"
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-
-      - run: pnpm --filter seclaw build
 
       - name: Create Release PR or Publish
         uses: changesets/action@v1
         with:
           title: "chore: release"
           commit: "chore: release"
-          publish: pnpm --filter seclaw publish
+          publish: pnpm release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
