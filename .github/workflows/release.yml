@@ -8,16 +8,18 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Skip release commits to avoid infinite loop
+    if: "!startsWith(github.event.head_commit.message, 'chore: release')"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
 
@@ -27,14 +29,40 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
 
-      - name: Create Release PR or Publish
-        uses: changesets/action@v1
-        with:
-          title: "chore: release"
-          commit: "chore: release"
-          publish: pnpm release
+      - name: Build CLI
+        run: pnpm --filter seclaw build
+
+      - name: Check if CLI changed
+        id: check
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- packages/cli/ packages/runtime/ packages/templates/free/)
+            if [ -n "$CHANGES" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Bump version and publish
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cd packages/cli
+          npm version patch --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          cd ../..
+          git add packages/cli/package.json
+          git commit -m "chore: release seclaw@${VERSION}"
+          git tag "v${VERSION}"
+          git push origin main --tags
+          cd packages/cli
+          npm publish --access public
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
