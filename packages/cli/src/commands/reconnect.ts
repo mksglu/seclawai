@@ -67,7 +67,7 @@ export async function reconnect() {
   } catch { /* no token */ }
 
   p.note(
-    `${pc.dim("Tunnel:")} ${pc.cyan(tunnelUrl)}`,
+    `${pc.white(pc.bold("Tunnel:"))} ${pc.cyan(tunnelUrl)}`,
     "seclaw"
   );
 

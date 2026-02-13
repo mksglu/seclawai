@@ -21,7 +21,7 @@ export function Pricing() {
           </p>
           <a
             href="/templates"
-            className="mt-6 inline-block rounded-lg bg-green-500 px-8 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+            className="mt-6 inline-block rounded-lg bg-white px-8 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
           >
             Browse All Templates
           </a>

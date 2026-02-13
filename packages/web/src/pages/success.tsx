@@ -1,14 +1,6 @@
 export function Success() {
   return (
     <div>
-      <nav className="fixed top-0 z-50 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" className="font-mono text-sm font-bold text-white">
-            seclaw
-          </a>
-        </div>
-      </nav>
-
       <section className="flex min-h-screen items-center justify-center px-6 lg:px-8">
         <div className="mx-auto max-w-md text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
@@ -33,7 +25,7 @@ export function Success() {
           <div className="mt-8 flex items-center justify-center gap-4">
             <a
               href="/dashboard"
-              className="rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
+              className="rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
             >
               Go to Dashboard
             </a>
