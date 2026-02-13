@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup types.ts --format esm --dts --clean && cp -r free dist/free && cp -r paid dist/paid",
+    "build": "tsup types.ts --format esm --dts --clean && mkdir -p dist/free dist/paid && (cp -r free/. dist/free/ 2>/dev/null || true) && (cp -r paid/. dist/paid/ 2>/dev/null || true)",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
