@@ -254,8 +254,8 @@ async function startServices(
 const PROVIDER_LABELS: Record<string, { model: string; cost: string }> = {
   openrouter: { model: "Gemini 3 Flash", cost: "~$3-10/mo" },
   anthropic:  { model: "Claude Sonnet 4.5", cost: "~$15-30/mo" },
-  openai:     { model: "GPT-4o", cost: "~$10-25/mo" },
-  gemini:     { model: "Gemini 2.5 Pro", cost: "~$7-20/mo" },
+  openai:     { model: "GPT-4o mini", cost: "~$3-10/mo" },
+  gemini:     { model: "Gemini 2.5 Flash", cost: "~$3-10/mo" },
 };
 
 function showSuccess(

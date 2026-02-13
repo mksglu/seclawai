@@ -63,7 +63,7 @@ const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
   },
   openai: {
     baseURL: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o",
+    defaultModel: "gpt-4o-mini",
     envKey: "OPENAI_API_KEY",
   },
   anthropic: {
@@ -74,7 +74,7 @@ const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
   },
   gemini: {
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    defaultModel: "gemini-2.5-flash",
+    defaultModel: "gemini-3-flash-preview",
     envKey: "GOOGLE_AI_API_KEY",
   },
 };
@@ -150,12 +150,30 @@ export async function runAgent(
         max_tokens: 2048,
       };
 
-      // OpenRouter supports reasoning param to disable thinking for faster responses
-      if (config.llmProvider === "openrouter") {
+      // Disable thinking/reasoning for faster, cheaper responses
+      // Each provider has different param names; some may not support it at all
+      if (config.llmProvider === "openrouter" || config.llmProvider === "anthropic") {
+        params.reasoning = { effort: "none" };
+      } else if (config.llmProvider === "openai") {
+        params.reasoning_effort = "low";
+      } else if (config.llmProvider === "gemini") {
         params.reasoning = { effort: "none" };
       }
 
-      response = await client.chat.completions.create(params as unknown as OpenAI.ChatCompletionCreateParamsNonStreaming);
+      try {
+        response = await client.chat.completions.create(params as unknown as OpenAI.ChatCompletionCreateParamsNonStreaming);
+      } catch (retryErr) {
+        const re = retryErr as Error & { status?: number };
+        if (re.status === 400 && (params.reasoning || params.reasoning_effort)) {
+          // Provider doesn't support reasoning params — retry without them
+          console.log(`[llm] Retrying without reasoning params (${config.llmProvider} returned 400)`);
+          delete params.reasoning;
+          delete params.reasoning_effort;
+          response = await client.chat.completions.create(params as unknown as OpenAI.ChatCompletionCreateParamsNonStreaming);
+        } else {
+          throw retryErr;
+        }
+      }
     } catch (err) {
       const e = err as Error & { status?: number; error?: unknown; code?: string; body?: unknown; headers?: unknown };
       console.error(`[llm] API error: status=${e.status || "?"} code=${e.code || "?"} message=${e.message}`);

@@ -73,8 +73,8 @@ export async function collectSetupAnswers(targetDir?: string): Promise<SetupAnsw
     options: [
       { value: "openrouter" as const, label: "OpenRouter", hint: "recommended — Gemini 3 Flash, ~$3-10/mo" },
       { value: "anthropic" as const, label: "Anthropic (Claude)", hint: "~$15-30/mo" },
-      { value: "openai" as const, label: "OpenAI (GPT-4o)", hint: "~$10-25/mo" },
-      { value: "gemini" as const, label: "Google (Gemini)", hint: "~$7-20/mo" },
+      { value: "openai" as const, label: "OpenAI (GPT-4o mini)", hint: "~$3-10/mo" },
+      { value: "gemini" as const, label: "Google (Gemini 3 Flash)", hint: "~$3-10/mo" },
     ],
   });
   if (p.isCancel(provider)) process.exit(0);
