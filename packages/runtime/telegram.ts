@@ -121,15 +121,9 @@ export async function handleWebhook(
     return;
   }
 
-  // Handle /capabilities command
-  if (userText.startsWith("/capabilities")) {
-    await handleCapabilities(chatId, config);
-    return;
-  }
-
-  // Handle /switch command
-  if (userText.startsWith("/switch")) {
-    await handleSwitch(chatId, config);
+  // Handle /templates command (info + switch in one)
+  if (userText.startsWith("/templates")) {
+    await handleTemplates(chatId, config);
     return;
   }
 
@@ -171,7 +165,8 @@ export async function sendMessage(token: string, chatId: number, text: string): 
   const chunks = splitMessage(text, 4000);
   for (const chunk of chunks) {
     try {
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      // Try with Markdown first
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -180,8 +175,18 @@ export async function sendMessage(token: string, chatId: number, text: string): 
           parse_mode: "Markdown",
         }),
       });
+      const data = await res.json() as { ok: boolean; description?: string };
+      if (!data.ok) {
+        // Markdown parse failed — retry without parse_mode
+        console.log(`[telegram] Markdown failed: ${data.description} — retrying plain`);
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: chunk }),
+        });
+      }
     } catch {
-      // Retry without Markdown if parse fails
+      // Network error — retry without Markdown
       try {
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: "POST",
@@ -812,19 +817,23 @@ async function editMessageWithButtons(
   } catch { /* ignore */ }
 }
 
-/* ── /capabilities command ────────────────────────────────────── */
+/* ── /templates command (info + switch unified) ──────────── */
 
-async function handleCapabilities(chatId: number, config: AgentConfig): Promise<void> {
+async function handleTemplates(chatId: number, config: AgentConfig): Promise<void> {
   const capabilities = loadInstalledCapabilities(config.workspace);
 
   if (capabilities.length === 0) {
     await sendMessage(
       config.telegramToken,
       chatId,
-      "No capabilities installed. Using default single-prompt mode.",
+      "No templates installed. Using default single-prompt mode.\n\n" +
+      "Add templates: `npx seclaw add <template>`\n" +
+      "Browse: seclawai.com/templates",
     );
     return;
   }
+
+  const activeMode = getActiveMode(config.workspace);
 
   // Count enabled schedules per capability
   const scheduleConfig = loadScheduleConfig(config.workspace);
@@ -840,66 +849,51 @@ async function handleCapabilities(chatId: number, config: AgentConfig): Promise<
   }
 
   const lines = capabilities.map((capId) => {
-    // Convert capability ID to display name (e.g. "inbox-agent" -> "Inbox Agent")
     const displayName = capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
     const schedCount = scheduleCountByCapability[capId] || 0;
     const schedLabel = schedCount > 0 ? ` \u2014 ${schedCount} schedule${schedCount > 1 ? "s" : ""}` : "";
-    // Check if system-prompt.md exists
     const promptPath = resolve(config.workspace, "config", "capabilities", capId, "system-prompt.md");
     const hasPrompt = existsSync(promptPath);
     const statusIcon = hasPrompt ? "\u2705" : "\u26A0\uFE0F";
     return `${statusIcon} *${displayName}*${schedLabel}`;
   });
 
-  await sendMessage(
-    config.telegramToken,
-    chatId,
-    `*Installed Capabilities*\n\n${lines.join("\n")}`,
-  );
-}
+  // Mode label
+  let modeLabel: string;
+  if (activeMode === "auto") {
+    modeLabel = `Auto \u2014 all ${capabilities.length} templates active`;
+  } else {
+    const activeName = activeMode.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    modeLabel = `${activeName} (focus mode)`;
+  }
 
-async function handleSwitch(chatId: number, config: AgentConfig): Promise<void> {
-  const capabilities = loadInstalledCapabilities(config.workspace);
-  const activeMode = getActiveMode(config.workspace);
+  const text = `*Installed Templates (${capabilities.length})*\n\n${lines.join("\n")}\n\nMode: *${modeLabel}*`;
 
-  if (capabilities.length <= 1) {
+  if (capabilities.length >= 2) {
+    // Build switch keyboard inline
+    const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+
+    const autoLabel = activeMode === "auto" ? "\u2705 Auto (All Templates)" : "\uD83D\uDD04 Auto (All Templates)";
+    keyboard.push([{ text: autoLabel, callback_data: "cap_switch:auto" }]);
+
+    const capButtons: Array<{ text: string; callback_data: string }> = [];
+    for (const capId of capabilities) {
+      const displayName = capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      const icon = activeMode === capId ? "\u2705" : "\u25CB";
+      capButtons.push({ text: `${icon} ${displayName}`, callback_data: `cap_switch:${capId}` });
+    }
+    for (let i = 0; i < capButtons.length; i += 2) {
+      keyboard.push(capButtons.slice(i, i + 2));
+    }
+
+    await sendMessageWithButtons(config.telegramToken, chatId, text, keyboard);
+  } else {
     await sendMessage(
       config.telegramToken,
       chatId,
-      "Only one capability installed. Add more templates to use /switch.\n\n" +
-      "Browse templates: seclawai.com/templates",
+      text + "\n\nAdd more templates to switch modes:\n`npx seclaw add <template> --key YOUR_KEY`",
     );
-    return;
   }
-
-  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
-
-  // Auto mode button (first row, full width)
-  const autoLabel = activeMode === "auto" ? "\u2705 Auto (All Capabilities)" : "\uD83D\uDD04 Auto (All Capabilities)";
-  keyboard.push([{ text: autoLabel, callback_data: "cap_switch:auto" }]);
-
-  // Individual capability buttons (2 per row)
-  const capButtons: Array<{ text: string; callback_data: string }> = [];
-  for (const capId of capabilities) {
-    const displayName = capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    const icon = activeMode === capId ? "\u2705" : "\u25CB";
-    capButtons.push({ text: `${icon} ${displayName}`, callback_data: `cap_switch:${capId}` });
-  }
-  for (let i = 0; i < capButtons.length; i += 2) {
-    keyboard.push(capButtons.slice(i, i + 2));
-  }
-
-  let statusText = "*Agent Mode*\n\n";
-  if (activeMode === "auto") {
-    statusText += `Current: *Auto* \u2014 all ${capabilities.length} capabilities active\n`;
-    statusText += "The agent uses the right capability based on your message.";
-  } else {
-    const activeName = activeMode.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    statusText += `Current: *${activeName}* (focus mode)\n`;
-    statusText += "Only this capability + base is active.";
-  }
-
-  await sendMessageWithButtons(config.telegramToken, chatId, statusText, keyboard);
 }
 
 async function handleSwitchCallback(chatId: number, msgId: number | undefined, capId: string, config: AgentConfig): Promise<void> {

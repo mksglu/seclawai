@@ -107,7 +107,7 @@ export function AutoMode() {
             <div>
               <h3 className="text-sm font-semibold text-white">Optional: Focus Mode</h3>
               <p className="mt-1 text-xs text-neutral-400">
-                Use <code className="text-green-400">/switch</code> in Telegram to focus on a single agent. Auto mode is the default.
+                Use <code className="text-green-400">/templates</code> in Telegram to focus on a single agent. Auto mode is the default.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

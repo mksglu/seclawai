@@ -305,7 +305,7 @@ Each template gets a test file: `packages/templates/paid/<template>/test.json`
 | Format attribution footer in Telegram | Telegram Dev | `runtime/telegram.ts` | P1 |
 | Add `/metadata on/off` toggle | Telegram Dev | `runtime/telegram.ts` | P1 |
 | Onboarding flow on first template activation | Telegram Dev | `runtime/telegram.ts` | P1 |
-| Add `/capabilities` command (list installed) | Telegram Dev | `runtime/telegram.ts` | P1 |
+| `/switch` command (list installed + switch mode) | Telegram Dev | `runtime/telegram.ts` | P1 (DONE) |
 
 ### Phase 3: Testing & Validation (Week 3)
 

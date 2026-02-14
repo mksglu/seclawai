@@ -145,7 +145,7 @@ export function Docs() {
                   <span className="text-green-400">
                     npx seclaw templates
                   </span>
-                  <span className="text-neutral-500"> — List all templates</span>
+                  <span className="text-neutral-500"> — List installed templates &amp; mode</span>
                 </div>
                 <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
                   <span className="text-green-400">
@@ -184,6 +184,10 @@ export function Docs() {
             <div>
               <h2 className="text-xl font-semibold text-white">Telegram Commands</h2>
               <div className="mt-4 space-y-3 font-mono text-sm">
+                <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+                  <span className="text-green-400">/templates</span>
+                  <span className="text-neutral-500"> — List installed templates, schedule counts, active mode</span>
+                </div>
                 <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
                   <span className="text-green-400">/schedules</span>
                   <span className="text-neutral-500"> — View scheduled tasks, approve/reject pending actions</span>

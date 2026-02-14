@@ -75,12 +75,14 @@ Every response ends with an attribution footer showing which agent(s) answered.
 
 ### Focus Mode
 
-Use `/switch` in Telegram to focus on a single agent. Auto mode is the default.
+Use `/templates` in Telegram or `npx seclaw templates` in CLI to view and switch modes. Auto mode is the default.
 
 ```
-/switch              → Show installed agents + Auto mode
-/switch sales-agent  → Focus on Sales only
-/switch auto         → Back to all agents collaborating
+/templates           → List installed templates + switch mode
+```
+
+```bash
+npx seclaw templates  # List installed templates + active mode
 ```
 
 ### Smart Integration Detection
@@ -136,7 +138,7 @@ npx seclaw add productivity-agent
 # Paid templates — use your token
 npx seclaw add inbox-agent --key YOUR_TOKEN
 npx seclaw add research-agent --key YOUR_TOKEN   # same token
-npx seclaw capabilities                           # List installed
+npx seclaw status                                  # Check services & installed
 ```
 
 Browse and purchase at [seclawai.com/templates](https://seclawai.com/templates).
@@ -207,7 +209,7 @@ Every agent gets a structured workspace at `/workspace`:
 ├── notes/        Quick thoughts, ideas, meeting notes, links
 ├── reports/      Research results, summaries, daily digests
 ├── drafts/       Draft emails, messages, documents to review
-└── config/       Schedules, capabilities, integrations (system-managed)
+└── config/       Schedules, templates, integrations (system-managed)
 ```
 
 ### Workspace Tools
@@ -266,7 +268,7 @@ Or let the agent handle it — when a template needs an integration, it calls `c
 ```bash
 npx seclaw                           # Interactive setup wizard
 npx seclaw add <template> --key TOKEN # Download a purchased template
-npx seclaw capabilities              # List/remove installed capabilities
+npx seclaw templates                 # List installed templates & mode
 npx seclaw integrations              # Connect/disconnect services
 npx seclaw status                    # Check services & health
 npx seclaw doctor                    # Auto-diagnose & fix issues
@@ -278,11 +280,11 @@ npx seclaw upgrade                   # Pull latest images & restart
 
 | Command | What it does |
 |---------|-------------|
-| `/switch` | Show installed agents, switch between Auto and Focus mode |
+| `/templates` | List installed templates + switch mode (info + inline keyboard) |
 | `/schedules` | View scheduled tasks, approve/reject pending |
 | `/integrations` | Connect/disconnect Composio services |
-| `/capabilities` | Show installed capabilities + schedule counts |
 | Any message | Agent responds using the right capability automatically |
+
 
 ---
 

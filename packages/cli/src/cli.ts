@@ -10,6 +10,7 @@ import { stop } from "./commands/stop.js";
 import { reconnect } from "./commands/reconnect.js";
 import { doctor } from "./commands/doctor.js";
 import { upgrade } from "./commands/upgrade.js";
+import { templates } from "./commands/templates.js";
 
 program
   .name("seclaw")
@@ -58,5 +59,10 @@ program
   .command("upgrade")
   .description("Pull latest images and restart")
   .action(upgrade);
+
+program
+  .command("templates")
+  .description("List installed templates and capabilities")
+  .action(templates);
 
 program.parse();
