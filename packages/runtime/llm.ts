@@ -363,7 +363,7 @@ ${memory ? `\n## Memory\n${memory}` : ""}
   return prompt;
 }
 
-const MAX_TOOL_RESULT = 4_000; // chars — prevents LLM from choking on large tool results
+const MAX_TOOL_RESULT = 10_000; // chars — balance between accuracy and token cost
 
 /**
  * Truncate and clean tool results to avoid sending huge payloads to the LLM.

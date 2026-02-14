@@ -264,7 +264,7 @@ async function connectComposio(config: AgentConfig): Promise<ComposioConnection 
     // 2. Fetch important tools for each connected app in parallel
     const toolResults = await Promise.allSettled(
       activeApps.map((app) =>
-        apiFetch(`/tools?toolkit_slug=${app}&important=true&limit=8`)
+        apiFetch(`/tools?toolkit_slug=${app}&limit=20`)
       )
     );
 
