@@ -83,10 +83,39 @@ const SOFTWARE_SCHEMA = {
   description: "Deploy secure, autonomous AI agents on your machine in 60 seconds. Docker-isolated, self-hosted.",
 };
 
+// SEO files (served as routes to bypass Cloudflare platform interception)
+app.get("/robots.txt", (c) => {
+  return c.text(`User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /success
+
+Sitemap: https://seclawai.com/sitemap.xml
+`);
+});
+
+app.get("/sitemap.xml", (c) => {
+  const urls = [
+    { loc: "/", freq: "weekly", priority: "1.0" },
+    { loc: "/templates", freq: "weekly", priority: "0.9" },
+    ...TEMPLATES.map((t) => ({ loc: `/templates/${t.id}`, freq: "monthly" as const, priority: "0.8" })),
+    { loc: "/docs", freq: "weekly", priority: "0.7" },
+    { loc: "/terms", freq: "yearly", priority: "0.3" },
+    { loc: "/privacy", freq: "yearly", priority: "0.3" },
+    { loc: "/legal", freq: "yearly", priority: "0.3" },
+  ];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `  <url><loc>https://seclawai.com${u.loc}</loc><changefreq>${u.freq}</changefreq><priority>${u.priority}</priority></url>`).join("\n")}
+</urlset>`;
+  return c.newResponse(xml, { headers: { "Content-Type": "application/xml" } });
+});
+
 // Pages
 app.get("/", (c) =>
   c.html(renderPage(<Home />, {
-    title: "seclaw — Secure AI Agents on Your Machine",
+    title: "seclawai.com — Secure AI Agents on Your Machine",
     description: "Deploy autonomous AI agents in 60 seconds. 17 templates, Auto Mode, Docker isolation. Self-hosted, no subscriptions. One Telegram bot, multiple agents.",
     path: "/",
     jsonLd: { ...ORG_SCHEMA, ...SOFTWARE_SCHEMA, "@type": ["Organization", "SoftwareApplication"] },
