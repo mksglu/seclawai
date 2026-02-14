@@ -134,13 +134,12 @@ export async function handleWebhook(
 
     console.log(`[telegram] Reply (${response.length} chars): ${response.substring(0, 120)}`);
 
-    // Extract and format capability footer
-    // LLM may output: "--- CapName", "— CapName", or with extra whitespace/newlines
+    // Extract capability footer from LLM output
     let footer = "";
     const footerMatch = response.match(/\n[-—]{2,3}\s*(.+?)\s*$/);
     if (footerMatch) {
       response = response.replace(/\n[-—]{2,3}\s*.+?\s*$/, "").trimEnd();
-      footer = `\n\n_— ${footerMatch[1].trim()}_`;
+      footer = `\n\n— ${footerMatch[1].trim()}`;
     }
 
     saveHistory(chatId, config.workspace, [
