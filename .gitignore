@@ -44,6 +44,7 @@ coverage/
 
 # Internal docs
 docs/
+!docs/agentic-development-prd.md
 
 # CLI runtime (copied into dist during build)
 packages/cli/runtime/
