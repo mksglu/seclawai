@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /success
+
+Sitemap: https://seclawai.com/sitemap.xml
