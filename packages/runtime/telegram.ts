@@ -135,11 +135,12 @@ export async function handleWebhook(
     console.log(`[telegram] Reply (${response.length} chars): ${response.substring(0, 120)}`);
 
     // Extract and format capability footer
+    // LLM may output: "--- CapName", "— CapName", or with extra whitespace/newlines
     let footer = "";
-    const footerMatch = response.match(/\n--- (.+)$/);
+    const footerMatch = response.match(/\n[-—]{2,3}\s*(.+?)\s*$/);
     if (footerMatch) {
-      response = response.replace(/\n--- .+$/, "");
-      footer = `\n\n_\u2014 ${footerMatch[1]}_`;
+      response = response.replace(/\n[-—]{2,3}\s*.+?\s*$/, "").trimEnd();
+      footer = `\n\n_— ${footerMatch[1].trim()}_`;
     }
 
     saveHistory(chatId, config.workspace, [
@@ -817,19 +818,55 @@ async function editMessageWithButtons(
   } catch { /* ignore */ }
 }
 
+/* ── Template catalog (shared between runtime + web) ─────── */
+
+const TEMPLATE_CATALOG = [
+  { id: "productivity-agent", name: "Productivity Agent", price: "Free" },
+  { id: "data-analyst", name: "Data Analyst", price: "Free" },
+  { id: "inbox-agent", name: "Inbox Agent", price: "$19" },
+  { id: "reddit-hn-digest", name: "Reddit & HN Digest", price: "$19" },
+  { id: "youtube-digest", name: "YouTube Digest", price: "$19" },
+  { id: "health-tracker", name: "Health Tracker", price: "$29" },
+  { id: "earnings-tracker", name: "Earnings Tracker", price: "$29" },
+  { id: "research-agent", name: "Research Agent", price: "$39" },
+  { id: "knowledge-base", name: "Knowledge Base", price: "$39" },
+  { id: "family-calendar", name: "Family Calendar", price: "$39" },
+  { id: "content-agent", name: "Content Agent", price: "$49" },
+  { id: "personal-crm", name: "Personal CRM", price: "$49" },
+  { id: "youtube-creator", name: "YouTube Creator", price: "$69" },
+  { id: "devops-agent", name: "DevOps Agent", price: "$79" },
+  { id: "customer-service", name: "Customer Service", price: "$79" },
+  { id: "sales-agent", name: "Sales Agent", price: "$79" },
+  { id: "six-agent-company", name: "6-Agent Company", price: "$149" },
+];
+
 /* ── /templates command (info + switch unified) ──────────── */
 
 async function handleTemplates(chatId: number, config: AgentConfig): Promise<void> {
   const capabilities = loadInstalledCapabilities(config.workspace);
 
   if (capabilities.length === 0) {
-    await sendMessage(
-      config.telegramToken,
-      chatId,
-      "No templates installed. Using default single-prompt mode.\n\n" +
-      "Add templates: `npx seclaw add <template>`\n" +
-      "Browse: seclawai.com/templates",
-    );
+    // Show full template catalog with URL buttons
+    const lines = TEMPLATE_CATALOG.map((t) => {
+      const tag = t.price === "Free" ? "FREE" : t.price;
+      return `\u2022 *${t.name}* \u2014 ${tag}`;
+    });
+
+    const text =
+      `*seclaw Templates (${TEMPLATE_CATALOG.length})*\n\n` +
+      lines.join("\n") +
+      "\n\n_Tap a template to view details:_";
+
+    // Build URL keyboard — 1 per row for readability
+    const keyboard: Array<Array<{ text: string; url: string }>> = [];
+    for (const t of TEMPLATE_CATALOG) {
+      keyboard.push([{
+        text: `${t.name} — ${t.price}`,
+        url: `https://seclawai.com/templates/${t.id}`,
+      }]);
+    }
+
+    await sendMessageWithButtons(config.telegramToken, chatId, text, keyboard as any);
     return;
   }
 
@@ -867,12 +904,19 @@ async function handleTemplates(chatId: number, config: AgentConfig): Promise<voi
     modeLabel = `${activeName} (focus mode)`;
   }
 
-  const text = `*Installed Templates (${capabilities.length})*\n\n${lines.join("\n")}\n\nMode: *${modeLabel}*`;
+  // Available templates not yet installed
+  const notInstalled = TEMPLATE_CATALOG.filter((t) => !capabilities.includes(t.id));
 
+  let text = `*Installed Templates (${capabilities.length})*\n\n${lines.join("\n")}\n\nMode: *${modeLabel}*`;
+
+  if (notInstalled.length > 0) {
+    text += `\n\n*Browse More (${notInstalled.length})*\n_Tap to view details:_`;
+  }
+
+  const keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>> = [];
+
+  // Switch buttons (only when 2+ installed)
   if (capabilities.length >= 2) {
-    // Build switch keyboard inline
-    const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
-
     const autoLabel = activeMode === "auto" ? "\u2705 Auto (All Templates)" : "\uD83D\uDD04 Auto (All Templates)";
     keyboard.push([{ text: autoLabel, callback_data: "cap_switch:auto" }]);
 
@@ -885,15 +929,17 @@ async function handleTemplates(chatId: number, config: AgentConfig): Promise<voi
     for (let i = 0; i < capButtons.length; i += 2) {
       keyboard.push(capButtons.slice(i, i + 2));
     }
-
-    await sendMessageWithButtons(config.telegramToken, chatId, text, keyboard);
-  } else {
-    await sendMessage(
-      config.telegramToken,
-      chatId,
-      text + "\n\nAdd more templates to switch modes:\n`npx seclaw add <template> --key YOUR_KEY`",
-    );
   }
+
+  // Browse catalog buttons for not-installed templates — 1 per row
+  for (const t of notInstalled) {
+    keyboard.push([{
+      text: `${t.name} — ${t.price}`,
+      url: `https://seclawai.com/templates/${t.id}`,
+    }]);
+  }
+
+  await sendMessageWithButtons(config.telegramToken, chatId, text, keyboard as any);
 }
 
 async function handleSwitchCallback(chatId: number, msgId: number | undefined, capId: string, config: AgentConfig): Promise<void> {
@@ -926,7 +972,7 @@ export async function sendMessageWithButtons(
   token: string,
   chatId: number,
   text: string,
-  keyboard: Array<Array<{ text: string; callback_data: string }>>,
+  keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>>,
 ): Promise<void> {
   if (!token || !chatId) return;
   try {

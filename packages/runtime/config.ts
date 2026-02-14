@@ -27,12 +27,7 @@ const AUTO_BASE_PROMPT = `You are a personal AI assistant running on seclaw. You
 ## Communication
 - Detect the user's language and respond in the same language
 - Keep Telegram messages concise — use bullet points and short paragraphs
-- Be proactive when you have relevant context to share
-
-## Response Format
-At the end of every response, write on a new line:
---- CapabilityName
-Where CapabilityName is the capability you primarily used (e.g. "Inbox Management", "Research & Intelligence"). If no specific capability applies, write: --- General`;
+- Be proactive when you have relevant context to share`;
 
 function focusBasePrompt(capId: string): string {
   const displayName = capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
@@ -43,11 +38,7 @@ IMPORTANT: You are in FOCUS MODE. Only use the capability described below. Do NO
 ## Communication
 - Detect the user's language and respond in the same language
 - Keep Telegram messages concise — use bullet points and short paragraphs
-- Be proactive when you have relevant context to share
-
-## Response Format
-At the end of every response, write on a new line:
---- ${displayName}`;
+- Be proactive when you have relevant context to share`;
 }
 
 export function loadConfig(): AgentConfig {
@@ -178,7 +169,15 @@ function composeCapabilityPrompt(capabilities: string[], mode: string): string {
     return base;
   }
 
-  return base + "\n\n" + sections.join("\n\n");
+  // Footer instruction at the END so LLM sees it last and follows it reliably
+  const capNames = capabilities.map((id) =>
+    id.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+  );
+  const footerInstruction = mode === "auto"
+    ? `## MANDATORY Response Footer\nYou MUST end EVERY response with this exact format on a new line:\n--- CapabilityName\nReplace CapabilityName with the capability you used (one of: ${capNames.join(", ")}). If none applies, write: --- General\nThis line is REQUIRED. Never skip it.`
+    : `## MANDATORY Response Footer\nYou MUST end EVERY response with this exact format on a new line:\n--- ${capNames[0]}\nThis line is REQUIRED. Never skip it.`;
+
+  return base + "\n\n" + sections.join("\n\n") + "\n\n" + footerInstruction;
 }
 
 /**
