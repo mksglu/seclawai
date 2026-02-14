@@ -358,12 +358,12 @@ async function checkTelegram(
     const wh = whData.result;
     const tunnelUrl = tunnelCheck.tunnelUrl || "";
 
-    // Shared fix: get fresh tunnel URL and set webhook
+    // Shared fix: get fresh tunnel URL, wait for DNS, set webhook
     const webhookFix = async () => {
-      const freshUrl = await getTunnelUrl(projectDir, 5);
+      const freshUrl = await getTunnelUrl(projectDir, 15);
       if (!freshUrl) return "No tunnel URL available — fix tunnel first";
       const ok = await setTelegramWebhook(botToken, freshUrl);
-      return ok ? `Webhook set to ${freshUrl}` : "Could not set webhook";
+      return ok ? `Webhook set to ${freshUrl}` : "Could not set webhook — DNS may still be propagating, try again in 30s";
     };
 
     if (!wh.url) {

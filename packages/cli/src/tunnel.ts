@@ -69,8 +69,24 @@ export async function setTelegramWebhook(
   tunnelUrl: string
 ): Promise<boolean> {
   const webhookUrl = `${tunnelUrl}/webhook`;
+  const hostname = tunnelUrl.replace("https://", "");
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Wait for DNS to resolve (trycloudflare.com can take 30-60s)
+  for (let i = 0; i < 30; i++) {
+    try {
+      const { resolve4 } = await import("node:dns/promises");
+      await resolve4(hostname);
+      break;
+    } catch {
+      if (i === 29) {
+        // DNS never resolved — try setWebhook anyway as a last resort
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const res = await fetch(
         `https://api.telegram.org/bot${botToken}/setWebhook`,
@@ -87,11 +103,15 @@ export async function setTelegramWebhook(
 
       const data = (await res.json()) as { ok: boolean; description?: string };
       if (data.ok) return true;
-      // API returned error — retry
+      // DNS not propagated to Telegram's servers yet — wait longer
+      if (data.description?.includes("resolve host")) {
+        await new Promise((r) => setTimeout(r, 5000));
+        continue;
+      }
     } catch {
       // Network/timeout error — retry after delay
     }
-    if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
+    if (attempt < 4) await new Promise((r) => setTimeout(r, 3000));
   }
 
   // Final verification: check if webhook was actually set despite errors

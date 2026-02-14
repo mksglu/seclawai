@@ -198,10 +198,20 @@ ENTRYPOINT ["/bin/sh"]
   const script = `#!/bin/sh
 # Auto-updates Telegram webhook when tunnel URL changes on restart.
 
+wait_for_dns() {
+  HOST=$(echo "$1" | sed 's|https://||')
+  for i in $(seq 1 30); do
+    nslookup "$HOST" >/dev/null 2>&1 && return 0
+    printf '[tunnel] Waiting for DNS (%s, attempt %d/30)...\\n' "$HOST" "$i" >&2
+    sleep 2
+  done
+  return 1
+}
+
 set_webhook() {
   URL="$1"
-  for i in 1 2 3; do
-    sleep 10
+  wait_for_dns "$URL" || { printf '[tunnel] DNS resolution failed for %s\\n' "$URL" >&2; return 1; }
+  for i in 1 2 3 4 5; do
     RESP=$(curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \\
       -H "Content-Type: application/json" \\
       -d "{\\"url\\":\\"$URL/webhook\\",\\"allowed_updates\\":[\\"message\\",\\"callback_query\\"]}")
@@ -212,6 +222,7 @@ set_webhook() {
         ;;
     esac
     printf '[tunnel] Webhook attempt %d failed: %s\\n' "$i" "$RESP" >&2
+    sleep 5
   done
   return 1
 }
