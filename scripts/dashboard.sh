@@ -9,8 +9,19 @@ echo "=== seclaw Dashboard ==="
 echo ""
 
 # Stars
-STARS=$(gh api repos/mksglu/seclawai --jq '.stargazers_count' 2>/dev/null || echo "?")
-echo "GitHub Stars: $STARS"
+echo "--- GitHub Stars ---"
+echo ""
+STARGAZERS=$(gh api repos/mksglu/seclawai/stargazers --jq '.[].login' 2>/dev/null)
+STAR_COUNT=$(echo "$STARGAZERS" | grep -c . 2>/dev/null || echo "0")
+echo "  Total: $STAR_COUNT"
+echo ""
+if [ -n "$STARGAZERS" ]; then
+  echo "  Username"
+  echo "  -------------------------"
+  echo "$STARGAZERS" | while read -r user; do
+    echo "  $user"
+  done
+fi
 echo ""
 
 # Users (exclude self)
