@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 export interface AgentConfig {
@@ -17,6 +17,7 @@ export interface AgentConfig {
 
 interface InstalledConfig {
   capabilities: string[];
+  active?: string; // "auto" = all capabilities, or a specific capability ID
 }
 
 const WORKSPACE = process.env.WORKSPACE_PATH || "/workspace";
@@ -65,22 +66,39 @@ export function loadConfig(): AgentConfig {
 }
 
 function loadSystemPrompt(): string {
-  // Check for installed.json (multi-capability mode)
-  const installedPath = resolve(WORKSPACE, "config", "installed.json");
+  return reloadSystemPrompt(WORKSPACE);
+}
+
+/**
+ * Reload system prompt from installed.json.
+ * Respects active field: "auto" loads all, specific ID loads base + that one.
+ */
+export function reloadSystemPrompt(workspace: string): string {
+  const installedPath = resolve(workspace, "config", "installed.json");
   if (existsSync(installedPath)) {
     try {
       const installed = JSON.parse(readFileSync(installedPath, "utf-8")) as InstalledConfig;
       if (installed.capabilities && installed.capabilities.length > 0) {
-        return composeCapabilityPrompt(installed.capabilities);
+        const active = installed.active || "auto";
+
+        if (active === "auto") {
+          // Auto mode: load all capabilities
+          return composeCapabilityPrompt(installed.capabilities);
+        }
+
+        // Focus mode: load base + active capability only
+        const base = installed.capabilities[0]; // First is always base (productivity-agent)
+        const caps = base === active ? [active] : [base, active];
+        return composeCapabilityPrompt(caps);
       }
     } catch (err) {
       console.error(`[config] Failed to parse installed.json: ${(err as Error).message}`);
     }
   }
 
-  // Fallback: single system-prompt.md (backwards compat)
+  // Fallback: single system-prompt.md
   const paths = [
-    resolve(WORKSPACE, "config", "system-prompt.md"),
+    resolve(workspace, "config", "system-prompt.md"),
     "/templates/system-prompt.md",
   ];
   for (const p of paths) {
@@ -91,6 +109,38 @@ function loadSystemPrompt(): string {
   return `You are a helpful AI assistant. You can manage files, read emails, and help with tasks.
 Always be concise in Telegram messages. Use bullet points.
 Detect the user's language and respond in the same language.`;
+}
+
+/**
+ * Read the current active mode from installed.json.
+ * Returns "auto" or a specific capability ID.
+ */
+export function getActiveMode(workspace: string): string {
+  const installedPath = resolve(workspace, "config", "installed.json");
+  if (!existsSync(installedPath)) return "auto";
+  try {
+    const installed = JSON.parse(readFileSync(installedPath, "utf-8")) as InstalledConfig;
+    return installed.active || "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+/**
+ * Set the active mode in installed.json.
+ * "auto" = all capabilities, or a specific capability ID for focus mode.
+ */
+export function setActiveMode(workspace: string, active: string): void {
+  const installedPath = resolve(workspace, "config", "installed.json");
+  if (!existsSync(installedPath)) return;
+  try {
+    const installed = JSON.parse(readFileSync(installedPath, "utf-8")) as InstalledConfig;
+    installed.active = active;
+    writeFileSync(installedPath, JSON.stringify(installed, null, 2) + "\n");
+    console.log(`[config] Active mode set to: ${active}`);
+  } catch (err) {
+    console.error(`[config] Failed to update installed.json: ${(err as Error).message}`);
+  }
 }
 
 function composeCapabilityPrompt(capabilities: string[]): string {

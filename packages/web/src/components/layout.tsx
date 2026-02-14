@@ -51,15 +51,15 @@ function Layout({ children, title, description }: LayoutProps) {
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style dangerouslySetInnerHTML={{ __html: CRITICAL_CSS }} />
-        <title>{title || "seclaw — Secure AI Agents in 60 Seconds"}</title>
+        <title>{title || "seclaw — Agentic AI on Your Machine"}</title>
         <meta
           name="description"
-          content={description || "The OpenClaw alternative that doesn't compromise your security. Autonomous AI agents with Docker isolation, hard guardrails, and 60-second setup."}
+          content={description || "RIP OpenClaw. Deploy secure, autonomous AI agents on your machine in 60 seconds. Multiple agents, one Telegram bot. Docker-isolated, self-hosted, agentic by design."}
         />
-        <meta property="og:title" content={title || "seclaw — Secure AI Agents in 60s"} />
+        <meta property="og:title" content={title || "seclaw — Agentic AI on Your Machine"} />
         <meta
           property="og:description"
-          content={description || "RIP OpenClaw. Secure autonomous AI agents with hard guardrails. Setup in 60 seconds."}
+          content={description || "RIP OpenClaw. Secure autonomous AI agents with Docker isolation and hard guardrails. 17 templates, Auto Mode, 60-second setup."}
         />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />

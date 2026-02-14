@@ -1,5 +1,6 @@
 import { Hero } from "../components/hero.js";
 import { Quotes } from "../components/quotes.js";
+import { AutoMode } from "../components/auto-mode.js";
 import { OpenClawProblems } from "../components/openclaw-problems.js";
 import { Security } from "../components/security.js";
 import { Architecture } from "../components/architecture.js";
@@ -15,12 +16,13 @@ export function Home() {
       {/* Sections — story flow */}
       <Hero />
       <Quotes />
+      <AutoMode />
+      <BuiltFor />
       <OpenClawProblems />
       <Security />
       <Architecture />
       <BuiltInTools />
       <Integrations />
-      <BuiltFor />
       <HowItWorks />
       <Pricing />
 
@@ -28,33 +30,17 @@ export function Home() {
       <footer className="border-t border-neutral-800 px-6 py-12 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div>
-              <p className="font-mono text-sm font-bold text-white">seclaw</p>
-              <p className="mt-1 text-xs text-neutral-500">
-                Open source. Self-hosted. Your data stays yours.
-              </p>
+            <div className="flex items-center gap-4 text-xs text-neutral-500">
+              <a href="/terms" className="transition hover:text-neutral-300">Terms</a>
+              <span className="text-neutral-700">&middot;</span>
+              <a href="/privacy" className="transition hover:text-neutral-300">Privacy</a>
+              <span className="text-neutral-700">&middot;</span>
+              <a href="/legal" className="transition hover:text-neutral-300">Legal</a>
             </div>
-            <div className="flex items-center gap-6">
-              <a
-                href="https://github.com/seclaw/seclaw"
-                className="text-sm text-neutral-400 transition hover:text-white"
-                target="_blank"
-              >
-                GitHub
-              </a>
-              <a
-                href="/docs"
-                className="text-sm text-neutral-400 transition hover:text-white"
-              >
-                Docs
-              </a>
-              <a
-                href="/templates"
-                className="text-sm text-neutral-400 transition hover:text-white"
-              >
-                Templates
-              </a>
-            </div>
+            <p className="text-xs text-neutral-600">
+              <a href="https://mksg.lu" target="_blank" className="transition hover:text-neutral-400">MKSF LTD</a>
+              {" "}&middot; London, UK
+            </p>
           </div>
         </div>
       </footer>

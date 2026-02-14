@@ -60,7 +60,7 @@ export function OpenClawProblems() {
 
         <div className="mt-16 grid gap-4 sm:grid-cols-2">
           {bugs.map((bug) => (
-            <div className="rounded-xl border border-red-500/10 bg-red-500/5 p-6">
+            <div key={bug.title} className="rounded-xl border border-red-500/10 bg-red-500/5 p-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">{bug.title}</h3>
                 <span

@@ -77,7 +77,7 @@ export function Security() {
             </h3>
             <ul className="mt-4 space-y-4">
               {guardrails.map((item) => (
-                <li>
+                <li key={item.title}>
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 text-red-400">&#10005;</span>
                     <div>
@@ -98,7 +98,7 @@ export function Security() {
             </h3>
             <ul className="mt-4 space-y-3">
               {capabilities.map((item) => (
-                <li className="flex items-start gap-3 text-neutral-300">
+                <li key={item} className="flex items-start gap-3 text-neutral-300">
                   <span className="mt-0.5 text-green-400">&#10003;</span>
                   <span className="text-sm">{item}</span>
                 </li>
@@ -132,7 +132,7 @@ export function Security() {
               </thead>
               <tbody className="divide-y divide-neutral-800">
                 {comparison.map((row) => (
-                  <tr className="hover:bg-neutral-900/50">
+                  <tr key={row.feature} className="hover:bg-neutral-900/50">
                     <td className="px-6 py-3 text-white">{row.feature}</td>
                     <td className="px-6 py-3 text-sm text-red-400/80">{row.openclaw}</td>
                     <td className="px-6 py-3 text-sm text-green-400">{row.ours}</td>

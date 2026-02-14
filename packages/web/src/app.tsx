@@ -6,6 +6,9 @@ import { TemplateDetail } from "./pages/template-detail.js";
 import { Docs } from "./pages/docs.js";
 import { Success } from "./pages/success.js";
 import { Dashboard } from "./pages/dashboard.js";
+import { Terms } from "./pages/terms.js";
+import { Privacy } from "./pages/privacy.js";
+import { Legal } from "./pages/legal.js";
 import { TEMPLATES } from "./lib/templates.js";
 import { TEMPLATE_CONTENT } from "./lib/template-content.js";
 
@@ -56,6 +59,9 @@ app.get("/templates/:id", (c) => {
 app.get("/docs", (c) => c.html(renderPage(<Docs />)));
 app.get("/success", (c) => c.html(renderPage(<Success />)));
 app.get("/dashboard", (c) => c.html(renderPage(<Dashboard />, { title: "Dashboard — seclaw" })));
+app.get("/terms", (c) => c.html(renderPage(<Terms />, { title: "Terms — seclaw" })));
+app.get("/privacy", (c) => c.html(renderPage(<Privacy />, { title: "Privacy — seclaw" })));
+app.get("/legal", (c) => c.html(renderPage(<Legal />, { title: "Legal — seclaw" })));
 
 // 404
 app.notFound((c) =>

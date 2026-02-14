@@ -1,5 +1,5 @@
 import type { Template } from "../lib/templates.js";
-import type { TemplateContent } from "../lib/template-content.js";
+import type { TemplateContent, DemoMessage } from "../lib/template-content.js";
 import { TEMPLATES } from "../lib/templates.js";
 
 /* ════════════════════════════════════════════
@@ -154,6 +154,88 @@ function RelatedTemplates({ current }: { current: Template }) {
   );
 }
 
+/* ── Telegram Demo ── */
+
+function TelegramDemo({ demo }: { demo: DemoMessage[] }) {
+  return (
+    <section className="border-t border-zinc-800/50 py-10">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Live Preview</h2>
+      <p className="mt-2 text-sm text-zinc-600">What this looks like in Telegram</p>
+      <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+        <div className="flex items-center gap-2 border-b border-zinc-800/80 bg-zinc-900/50 px-4 py-2.5">
+          <div className="flex gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+            <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+            <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+          </div>
+          <span className="ml-2 font-mono text-[11px] text-zinc-600">Telegram</span>
+        </div>
+        <div className="divide-y divide-zinc-800/30">
+          {demo.map((msg, i) => (
+            <div key={i} className={msg.role === "agent" ? "bg-zinc-900/30 p-4" : "p-4"}>
+              <p className="mb-1.5 text-[11px] text-zinc-600">{msg.role === "user" ? "You" : "seclaw"}</p>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-300">{msg.text}</p>
+              {msg.attribution && (
+                <p className="mt-2 text-[11px] italic text-zinc-600">&mdash; {msg.attribution}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Security Callout ── */
+
+function SecurityCallout() {
+  return (
+    <section className="border-t border-zinc-800/50 py-10">
+      <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-6">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 shrink-0">
+            <IconShield />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Why seclaw?</h3>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+              OpenClaw proved the demand &mdash; 68K+ GitHub stars. But it ships with zero container isolation:
+              API keys exposed to every MCP container, your home directory mounted to root-privileged processes,
+              port 5678 open with no auth.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+              Every seclaw template runs in Docker with hard guardrails &mdash; no root, no host access, no exposed ports.
+              Security enforced at runtime, not in the system prompt.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1.5 text-[12px] text-emerald-400">
+                <IconCheck />
+                Non-root containers
+              </div>
+              <div className="flex items-center gap-1.5 text-[12px] text-emerald-400">
+                <IconCheck />
+                Zero inbound ports
+              </div>
+              <div className="flex items-center gap-1.5 text-[12px] text-emerald-400">
+                <IconCheck />
+                API keys sealed per service
+              </div>
+              <div className="flex items-center gap-1.5 text-[12px] text-emerald-400">
+                <IconCheck />
+                512MB / 1 CPU limits
+              </div>
+            </div>
+            <a href="/#security" className="group mt-4 inline-flex items-center gap-1 text-[12px] text-zinc-500 transition-colors hover:text-zinc-300">
+              See the full OpenClaw vs seclaw comparison
+              <IconArrowRight />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ══════════════════════════════════════════════
    MAIN COMPONENT
    ══════════════════════════════════════════════ */
@@ -182,10 +264,11 @@ export function TemplateDetail({
           </a>
 
           <div className="mt-6">
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <Badge>{template.builtFor}</Badge>
               {isPaid && <Badge variant="outline">{`${template.price} one-time`}</Badge>}
               {!isPaid && <Badge variant="secondary">Free</Badge>}
+              <Badge variant="secondary">Auto Mode</Badge>
             </div>
 
             <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -245,6 +328,11 @@ export function TemplateDetail({
           </div>
         </section>
 
+        {/* ═══════ TELEGRAM DEMO ═══════ */}
+        {content?.demo && content.demo.length > 0 && (
+          <TelegramDemo demo={content.demo} />
+        )}
+
         {/* ═══════ AUTOMATION SCHEDULE ═══════ */}
         {content?.schedule && content.schedule.length > 0 && (
           <section className="border-t border-zinc-800/50 py-10">
@@ -298,6 +386,9 @@ export function TemplateDetail({
             </div>
           </section>
         )}
+
+        {/* ═══════ SECURITY ═══════ */}
+        <SecurityCallout />
 
         {/* ═══════ SETUP ═══════ */}
         {content?.setup && content.setup.length > 0 && (

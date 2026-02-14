@@ -8,14 +8,14 @@ export function Hero() {
         </p>
 
         <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
-          Secure autonomous AI agents{" "}
-          <span className="text-green-400">in 60 seconds.</span>
+          Your AI agents.{" "}
+          <span className="text-green-400">Working together.</span>
         </h1>
 
         <p className="mt-6 text-lg leading-8 text-neutral-400 sm:text-xl">
-          The OpenClaw alternative that doesn't compromise your security.
+          Install multiple agents, they collaborate automatically.
           <br />
-          Docker isolation. Hard guardrails. Zero inbound ports.
+          Self-hosted. Docker-isolated. Agentic by design.
         </p>
 
         <div className="mt-10 flex items-center justify-center gap-4">

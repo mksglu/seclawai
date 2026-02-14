@@ -5,7 +5,7 @@ import { resolve, dirname } from "node:path";
 import type { AgentConfig } from "./config.js";
 import { pendingConfirmations, type ToolContext, type ToolDefinition } from "./tools.js";
 import { loadScheduleConfig } from "./scheduler.js";
-import { loadInstalledCapabilities } from "./config.js";
+import { loadInstalledCapabilities, getActiveMode, setActiveMode, reloadSystemPrompt } from "./config.js";
 import type { Inngest } from "inngest";
 
 interface ChatMessage {
@@ -86,6 +86,10 @@ export async function handleWebhook(
       const confirmId = data.replace(/^confirm_(yes|no):/, "");
       const msgId = callback.message?.message_id;
       await handleConfirmation(chatId, msgId, confirmId, isApprove, config, toolCtx);
+    } else if (data.startsWith("cap_switch:")) {
+      const capId = data.replace("cap_switch:", "");
+      const msgId = callback.message?.message_id;
+      await handleSwitchCallback(chatId, msgId, capId, config);
     }
     return;
   }
@@ -120,6 +124,12 @@ export async function handleWebhook(
   // Handle /capabilities command
   if (userText.startsWith("/capabilities")) {
     await handleCapabilities(chatId, config);
+    return;
+  }
+
+  // Handle /switch command
+  if (userText.startsWith("/switch")) {
+    await handleSwitch(chatId, config);
     return;
   }
 
@@ -230,10 +240,15 @@ interface IntegrationParam {
   example: string;
 }
 
-const INTEGRATIONS: Record<string, { name: string; app: string; hint: string; params?: IntegrationParam[] }> = {
+export const INTEGRATIONS: Record<string, { name: string; app: string; hint: string; params?: IntegrationParam[] }> = {
   gmail:      { name: "Gmail",           app: "gmail",          hint: "email" },
   drive:      { name: "Google Drive",    app: "googledrive",    hint: "files" },
   calendar:   { name: "Google Calendar", app: "googlecalendar", hint: "events" },
+  twitter:    { name: "X (Twitter)",     app: "twitter",        hint: "tweets, leads, monitoring" },
+  reddit:     { name: "Reddit",          app: "reddit",         hint: "subreddits, posts" },
+  youtube:    { name: "YouTube",         app: "youtube",        hint: "channels, videos" },
+  tavily:     { name: "Tavily",          app: "tavily",         hint: "web search" },
+  hackernews: { name: "Hacker News",     app: "hackernews",     hint: "tech news, stories" },
   notion:     { name: "Notion",          app: "notion",         hint: "notes, databases" },
   github:     { name: "GitHub",          app: "github",         hint: "repos, issues" },
   slack:      { name: "Slack",           app: "slack",          hint: "messaging" },
@@ -250,13 +265,13 @@ const INTEGRATIONS: Record<string, { name: string; app: string; hint: string; pa
 /** Pending param collection: chatId → { key, params collected so far, integration key } */
 const pendingParams = new Map<number, { integrationKey: string; params: IntegrationParam[]; collected: Record<string, string>; currentIndex: number }>();
 
-const COMPOSIO_API = "https://backend.composio.dev/api/v3";
+export const COMPOSIO_API = "https://backend.composio.dev/api/v3";
 
 /**
  * Fetch active connections as Map<appSlug, accountId>.
  * Account ID needed for DELETE disconnect.
  */
-async function getActiveConnections(apiKey: string): Promise<Map<string, string>> {
+export async function getActiveConnections(apiKey: string): Promise<Map<string, string>> {
   const accounts = await composioFetch(apiKey, "/connected_accounts?status=ACTIVE");
   const map = new Map<string, string>();
   for (const a of (accounts.items || [])) {
@@ -843,6 +858,76 @@ async function handleCapabilities(chatId: number, config: AgentConfig): Promise<
   );
 }
 
+async function handleSwitch(chatId: number, config: AgentConfig): Promise<void> {
+  const capabilities = loadInstalledCapabilities(config.workspace);
+  const activeMode = getActiveMode(config.workspace);
+
+  if (capabilities.length <= 1) {
+    await sendMessage(
+      config.telegramToken,
+      chatId,
+      "Only one capability installed. Add more templates to use /switch.\n\n" +
+      "Browse templates: seclawai.com/templates",
+    );
+    return;
+  }
+
+  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+
+  // Auto mode button (first row, full width)
+  const autoLabel = activeMode === "auto" ? "\u2705 Auto (All Capabilities)" : "\uD83D\uDD04 Auto (All Capabilities)";
+  keyboard.push([{ text: autoLabel, callback_data: "cap_switch:auto" }]);
+
+  // Individual capability buttons (2 per row)
+  const capButtons: Array<{ text: string; callback_data: string }> = [];
+  for (const capId of capabilities) {
+    const displayName = capId.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const icon = activeMode === capId ? "\u2705" : "\u25CB";
+    capButtons.push({ text: `${icon} ${displayName}`, callback_data: `cap_switch:${capId}` });
+  }
+  for (let i = 0; i < capButtons.length; i += 2) {
+    keyboard.push(capButtons.slice(i, i + 2));
+  }
+
+  let statusText = "*Agent Mode*\n\n";
+  if (activeMode === "auto") {
+    statusText += `Current: *Auto* \u2014 all ${capabilities.length} capabilities active\n`;
+    statusText += "The agent uses the right capability based on your message.";
+  } else {
+    const activeName = activeMode.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    statusText += `Current: *${activeName}* (focus mode)\n`;
+    statusText += "Only this capability + base is active.";
+  }
+
+  await sendMessageWithButtons(config.telegramToken, chatId, statusText, keyboard);
+}
+
+async function handleSwitchCallback(chatId: number, msgId: number | undefined, capId: string, config: AgentConfig): Promise<void> {
+  const capabilities = loadInstalledCapabilities(config.workspace);
+
+  // Validate
+  if (capId !== "auto" && !capabilities.includes(capId)) {
+    await sendMessage(config.telegramToken, chatId, `Capability "${capId}" is not installed.`);
+    return;
+  }
+
+  // Update installed.json
+  setActiveMode(config.workspace, capId);
+
+  // Reload system prompt in-memory
+  config.systemPrompt = reloadSystemPrompt(config.workspace);
+
+  // Remove buttons from original message
+  if (msgId) {
+    const label = capId === "auto"
+      ? `\u2705 Switched to *Auto* \u2014 all capabilities active`
+      : `\u2705 Switched to *${capId.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}*`;
+    await removeButtons(config.telegramToken, chatId, msgId, label);
+  }
+
+  console.log(`[switch] Mode changed to: ${capId}`);
+}
+
 export async function sendMessageWithButtons(
   token: string,
   chatId: number,
@@ -888,7 +973,7 @@ async function answerCallbackQuery(token: string, callbackId: string): Promise<v
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function composioFetch(apiKey: string, path: string, options?: RequestInit): Promise<any> {
+export async function composioFetch(apiKey: string, path: string, options?: RequestInit): Promise<any> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {

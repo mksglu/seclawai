@@ -69,6 +69,7 @@ export function BuiltFor() {
         <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {useCases.map((uc) => (
             <a
+              key={uc.templateId}
               href={`/templates/${uc.templateId}`}
               className="group rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 transition hover:border-green-500/30 hover:bg-neutral-900"
             >

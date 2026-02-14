@@ -8,6 +8,12 @@ export interface FeatureRow {
   details: string;
 }
 
+export interface DemoMessage {
+  role: "user" | "agent";
+  text: string;
+  attribution?: string;
+}
+
 export interface TemplateContent {
   schedule?: ScheduleItem[];
   setup?: string[];
@@ -15,6 +21,7 @@ export interface TemplateContent {
   fileStructure?: string;
   featuresTable?: FeatureRow[];
   digestExample?: string;
+  demo?: DemoMessage[];
 }
 
 export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
@@ -36,6 +43,10 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Task management", details: "Create, track, and complete TODO items" },
       { feature: "Email drafting", details: "Draft emails via Gmail integration" },
       { feature: "File organization", details: "Manage notes and files on your machine" },
+    ],
+    demo: [
+      { role: "user", text: "What's on my plate today?" },
+      { role: "agent", text: "Good morning! Here's your briefing:\n\n3 tasks open:\n\u2022 Review contract \u2014 HIGH, due today\n\u2022 Prepare demo slides \u2014 MEDIUM, Thursday\n\u2022 Update docs \u2014 LOW, no deadline\n\nCalendar:\n\u2022 10:00 Team standup (30min)\n\u2022 14:00 Client call \u2014 Acme Corp\n\u2022 16:30 1:1 with Sarah", attribution: "Productivity Agent" },
     ],
   },
 
@@ -60,6 +71,10 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Composio OAuth", details: "Secure Gmail connection via OAuth" },
     ],
     digestExample: "URGENT (2)\n- [CTO] Server down in production -- P0 incident, needs immediate response\n- [Client] Contract deadline tomorrow -- Signature required by EOD\n\nACTION (4)\n- [PM] Sprint planning invite -- Wednesday 10am, please confirm\n- [HR] Benefits enrollment -- Open until Friday\n\nFYI (8)\n- [GitHub] PR #142 merged -- Feature branch cleanup\n- [Slack] Channel archive notice -- #old-project archived\n\nNEWSLETTER (5)\n- TechCrunch, Morning Brew, TLDR, Hacker Newsletter, Product Hunt",
+    demo: [
+      { role: "user", text: "Check my inbox" },
+      { role: "agent", text: "Inbox Digest\n\nURGENT (2)\n\u2022 [CTO] Server down \u2014 P0, needs response now\n\u2022 [Client] Contract deadline \u2014 signature by EOD\n\nACTION (4)\n\u2022 [PM] Sprint planning \u2014 confirm for Wednesday\n\u2022 [HR] Benefits enrollment \u2014 deadline Friday\n\nFYI (8) \u00b7 NEWSLETTER (5)\nReply with a number for details.", attribution: "Inbox Management" },
+    ],
   },
 
   "reddit-hn-digest": {
@@ -82,6 +97,10 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Score filtering", details: "Only surfaces posts above quality threshold" },
       { feature: "1-line summaries", details: "Title, score, comments, and key takeaway" },
     ],
+    demo: [
+      { role: "user", text: "What's trending today?" },
+      { role: "agent", text: "Hacker News Top 5\n\n1. Show HN: I built a local AI agent framework (342 pts)\n2. The end of SaaS as we know it (298 pts)\n3. PostgreSQL 18 with AI vector support (267 pts)\n4. Why I quit FAANG to build open source (234 pts)\n5. Anthropic's new approach to AI safety (198 pts)\n\nr/LocalLLaMA \u00b7 r/MachineLearning\n\u2022 New quantization drops Llama 4 to 4GB\n\u2022 Benchmark drama: GPT-5 vs Claude 4.5", attribution: "Reddit & HN Digest" },
+    ],
   },
 
   "youtube-digest": {
@@ -101,6 +120,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Key takeaways", details: "2-3 bullet summary per video" },
       { feature: "Deduplication", details: "Never see the same video twice" },
       { feature: "Morning briefing", details: "Daily digest delivered to Telegram" },
+    ],
+    demo: [
+      { role: "agent", text: "YouTube Morning Digest\n\n3 new videos from your channels:\n\n1. Fireship \u2014 \"AI agents are replacing junior devs\"\n   Key: Agent frameworks now handle 80% of boilerplate\n\n2. Theo \u2014 \"The death of REST APIs\"\n   Key: tRPC + Server Actions making REST obsolete\n\n3. Network Chuck \u2014 \"Home lab AI setup\"\n   Key: Step-by-step Ollama + GPU passthrough guide", attribution: "YouTube Digest" },
+      { role: "user", text: "Summarize the Fireship video" },
+      { role: "agent", text: "Fireship argues AI agents (not copilots) are the real disruption:\n\n\u2022 Agents now handle full PR workflows end-to-end\n\u2022 Junior dev hiring down 34% at YC companies\n\u2022 The surviving skill: system design thinking\n\nSaved to reports/fireship-ai-agents.md", attribution: "YouTube Digest" },
     ],
   },
 
@@ -125,6 +149,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Energy tracking", details: "1-10 scale with weekly averages" },
       { feature: "Weekly reports", details: "Sunday morning analysis with trends" },
     ],
+    demo: [
+      { role: "agent", text: "Morning check-in!\n\nHow did you sleep last night?\nRate your energy 1-10.\nWhat did you have for breakfast?" },
+      { role: "user", text: "Slept 7 hours, energy 6/10, oatmeal with blueberries and coffee" },
+      { role: "agent", text: "Logged!\n\nPattern detected: Your energy is consistently higher on days you eat oatmeal (avg 6.8) vs toast (avg 4.2). Blueberries correlate with better focus scores.\n\nNext check-in at 13:00.", attribution: "Health Tracker" },
+    ],
   },
 
   "earnings-tracker": {
@@ -146,6 +175,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Beat/miss analysis", details: "EPS and revenue vs estimates" },
       { feature: "AI segment tracking", details: "Highlights AI-related revenue breakdowns" },
       { feature: "Watchlist filtering", details: "Only tracks companies you care about" },
+    ],
+    demo: [
+      { role: "agent", text: "EARNINGS ALERT: NVDA\n\nNVIDIA Q4 2025 Results:\n\u2022 Revenue: $39.3B (est. $37.1B) \u2014 BEAT\n\u2022 EPS: $0.89 (est. $0.84) \u2014 BEAT\n\u2022 Data center: $35.6B (+93% YoY)\n\u2022 AI segment: 91% of revenue\n\nGuidance: Q1 $42-44B (above Street)\nStock: +8.2% after-hours", attribution: "Earnings Tracker" },
+      { role: "user", text: "Compare to last quarter" },
+      { role: "agent", text: "Quarter-over-quarter:\n\u2022 Revenue: +12% ($35.1B \u2192 $39.3B)\n\u2022 Data center: +15% growth acceleration\n\u2022 Gaming: -3% (seasonal decline)\n\nTrend: AI revenue acceleration continuing. 4th consecutive beat on both lines.", attribution: "Earnings Tracker" },
     ],
   },
 
@@ -171,6 +205,10 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Weekly summary", details: "Pattern detection across weekly data" },
       { feature: "On-demand", details: "\"research [topic]\" for deep dives" },
     ],
+    demo: [
+      { role: "user", text: "What are competitors doing this week?" },
+      { role: "agent", text: "Competitor Scan\n\n[HIGH] Acme Corp launched v3.0 with AI features\nSource: ProductHunt + X buzz (2.4K likes)\n\n[HIGH] Rival Inc raised $50M Series C\nSource: TechCrunch, confirmed via SEC filing\n\n[MEDIUM] StartupXYZ hiring 15 ML engineers\nSource: LinkedIn, 3 new postings today\n\nFull report saved to reports/competitor-scan.md", attribution: "Research & Intelligence" },
+    ],
   },
 
   "knowledge-base": {
@@ -192,6 +230,12 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Natural language search", details: "Find saved content by asking questions" },
       { feature: "Weekly maintenance", details: "Dedup, file verification, usage stats" },
       { feature: "Local storage", details: "All content stays on your machine" },
+    ],
+    demo: [
+      { role: "user", text: "Save this: https://example.com/building-production-rag" },
+      { role: "agent", text: "Saved and indexed!\n\nTitle: Building Production RAG Systems\nTags: #ai #rag #architecture #engineering\n\nKey takeaways:\n\u2022 Chunking strategy matters more than embedding model\n\u2022 Hybrid search outperforms pure vector by 20%\n\u2022 Reranking adds 15-20% relevance improvement", attribution: "Knowledge Base" },
+      { role: "user", text: "Find everything about RAG" },
+      { role: "agent", text: "Found 4 items tagged #rag:\n\n1. Building Production RAG Systems (today)\n2. Anthropic's Contextual Retrieval (Jan 28)\n3. LlamaIndex vs LangChain comparison (Jan 15)\n4. Your notes: \"RAG vs fine-tuning decision tree\" (Jan 10)", attribution: "Knowledge Base" },
     ],
   },
 
@@ -217,6 +261,9 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Grocery management", details: "Tracks inventory, generates shopping lists" },
       { feature: "Approval workflow", details: "Grocery list requires Telegram approval" },
     ],
+    demo: [
+      { role: "agent", text: "Good morning! Here's your family's day:\n\nYou: 10:00 dentist, 14:00 school pickup\nSarah: 09:00 yoga, 12:00 lunch with Mom\nEmma: School 08:30-15:00, soccer 16:00\n\nConflict: You have a meeting AND school pickup at 14:00.\nSuggestion: Ask Sarah to handle pickup (free after 13:00).\n\nGrocery alert: Milk, eggs, and bread running low.", attribution: "Family Calendar" },
+    ],
   },
 
   "content-agent": {
@@ -239,6 +286,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Human-in-the-loop", details: "Requires Telegram approval for every post" },
       { feature: "Research-driven", details: "Morning trend scan informs drafts" },
       { feature: "File-based memory", details: "Analytics and style guide persist across restarts" },
+    ],
+    demo: [
+      { role: "agent", text: "3 draft variants ready:\n\n#1 Educational:\n\"Most people think RAG is about embeddings. It's actually about chunking. Here's what I learned building a production system...\"\n\n#2 Personal story:\n\"I spent 3 months building the wrong RAG system. The fix took 2 hours. Thread\"\n\n#3 Contrarian:\n\"Hot take: RAG is already obsolete. Context windows are eating retrieval for lunch.\"\n\nReply 1, 2, or 3 to post.", attribution: "Content Agent" },
+      { role: "user", text: "Go with #2" },
+      { role: "agent", text: "Posted to X!\n\nTracking engagement \u2014 I'll report back in 24h with impressions, likes, and replies.", attribution: "Content Agent" },
     ],
   },
 
@@ -263,6 +315,9 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "VIP priority", details: "Important contacts get priority reminders" },
       { feature: "Interaction history", details: "Last contact date, topics, and open items" },
     ],
+    demo: [
+      { role: "agent", text: "Meeting Briefing: Call with Alex Chen (14:00)\n\nAlex Chen \u2014 CTO at DataFlow\n\u2022 Last contact: Jan 28 (email about API partnership)\n\u2022 Met at: AWS re:Invent 2024\n\u2022 Topics: data pipeline architecture, potential integration\n\u2022 Open item: He was going to share their API docs\n\nTalking point: Ask about the Series B they announced last week.\nFollow-up: Set Jan 28, now overdue.", attribution: "Personal CRM" },
+    ],
   },
 
   "youtube-creator": {
@@ -284,6 +339,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Full outlines", details: "Hook, key points, CTA, thumbnail suggestions" },
       { feature: "Duplicate prevention", details: "Checks against 90-day content catalog" },
       { feature: "Human-in-the-loop", details: "Approve ideas before outline generation" },
+    ],
+    demo: [
+      { role: "agent", text: "Breaking in your niche!\n\nAnthropic just launched Claude 4.5 (3h ago)\n\u2022 HN: #1 with 1,247 points\n\u2022 X: 15K+ impressions on announcement\n\nVideo Pitch:\n\"10 Things Claude 4.5 Can Do That GPT-4 Can't\"\n\nAngle: Hands-on demo, not benchmarks.\nWhy now: First 24h = max algorithm boost.\nEstimated: 50-100K views based on your niche.\n\n[Approve] to generate full outline.", attribution: "YouTube Creator" },
+      { role: "user", text: "Approve" },
+      { role: "agent", text: "Full Outline saved to outlines/claude-4-5.md\n\nHook (0:00): \"Claude just dropped something that changes everything...\"\nKey points: Computer use, extended thinking, multimodal\nCTA: Subscribe + comment which feature surprised you\nThumbnail: Split screen, Claude vs GPT logos", attribution: "YouTube Creator" },
     ],
   },
 
@@ -311,6 +371,10 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Approval for actions", details: "Security fixes require Telegram approval" },
       { feature: "24h trend tracking", details: "Disk and memory usage trends" },
     ],
+    demo: [
+      { role: "agent", text: "Health Check Alert\n\napi-server: 502 Bad Gateway (3 consecutive failures)\nAction: Auto-restarting container..." },
+      { role: "agent", text: "api-server back online\n\nDowntime: 47 seconds\nRoot cause: OOM kill (memory: 498/512MB)\nAutomatic restart successful.\n\nRecommendation: Consider increasing memory limit to 1GB. This is the 3rd OOM this week.", attribution: "DevOps Agent" },
+    ],
   },
 
   "customer-service": {
@@ -336,6 +400,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Escalation rules", details: "Auto-escalates based on configurable rules" },
       { feature: "Response tracking", details: "Flags unanswered inquiries after 4 hours" },
     ],
+    demo: [
+      { role: "agent", text: "New inquiry from john@acme.com\n\nIntent: Password reset (FAQ match: 94%)\nLanguage: English\nPriority: Normal\n\nDraft reply:\n\"Hi John, you can reset your password at dashboard.example.com/reset. Enter your email and follow the link. If you don't receive it within 5 minutes, check your spam folder.\"\n\n[Approve] [Reject] [Edit]" },
+      { role: "user", text: "Approve" },
+      { role: "agent", text: "Sent! Logged to inquiries/2025-02-14/john-acme.md\n\nToday: 12 inquiries, 10 resolved, avg response: 8 min", attribution: "Customer Service" },
+    ],
   },
 
   "sales-agent": {
@@ -360,6 +429,11 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "Follow-up system", details: "3-day automatic reminders for non-responders" },
       { feature: "CRM webhook", details: "Optional integration with external CRM" },
     ],
+    demo: [
+      { role: "agent", text: "New Lead (Score: 9/10)\n\n@techfounder on X:\n\"Looking for an alternative to [competitor]. Their pricing is insane and support is nonexistent. Anyone?\"\n\nSignals: Buying intent, Pain point, Decision maker, Budget\n\nDraft outreach:\n\"Hey! We hear this a lot. We built [product] specifically for teams leaving [competitor]. Happy to show you a 5-min demo \u2014 no commitment.\"\n\n[Approve] [Reject] [Edit]", attribution: "Sales & Lead Gen" },
+      { role: "user", text: "Approve" },
+      { role: "agent", text: "Outreach sent! Follow-up scheduled for Day 3.\nLogged to leads/2025-02-14.md", attribution: "Sales & Lead Gen" },
+    ],
   },
 
   "six-agent-company": {
@@ -381,6 +455,10 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContent> = {
       { feature: "5-type memory", details: "Episodic, semantic, procedural, emotional, relationship" },
       { feature: "Mission tracking", details: "Structured mission files with status and priority" },
       { feature: "Daily standups", details: "09:00 team status summary via Telegram" },
+    ],
+    demo: [
+      { role: "user", text: "Daily standup" },
+      { role: "agent", text: "MORNING STANDUP \u2014 6 agents reporting\n\nCoordinator: 2 active missions, 1 blocked\nExecutor: Completed MISSION-003 (blog post)\nObserver: Quality check passed \u2014 zero issues\nAnalyst: Weekly report ready for review\nContent: 3 X drafts pending approval\nGrowth: 5 new leads scored, 2 above threshold\n\nBlocked: MISSION-004 needs your input on target audience.\n\nReply with a mission number for details.", attribution: "6-Agent Company" },
     ],
   },
 };

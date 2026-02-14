@@ -3,15 +3,16 @@
 </p>
 
 <p align="center">
-  Secure autonomous AI agents in 60 seconds.<br />
-  The OpenClaw alternative with hard guardrails.
+  Agentic AI on your machine. Multiple agents, one Telegram bot.<br />
+  Self-hosted. Docker-isolated. Secure by default.
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#auto-mode">Auto Mode</a> &middot;
+  <a href="#templates">Templates</a> &middot;
   <a href="#architecture">Architecture</a> &middot;
-  <a href="#security">Security</a> &middot;
-  <a href="#templates">Templates</a>
+  <a href="#security">Security</a>
 </p>
 
 ---
@@ -44,6 +45,101 @@ The CLI handles everything: LLM provider, API key, Telegram token, Composio inte
 npx seclaw status    # Check all services
 npx seclaw doctor    # Auto-diagnose & fix issues
 ```
+
+---
+
+## Auto Mode
+
+Install multiple agents and they work together automatically. No manual switching — the LLM routes each message to the right capability.
+
+```
+You: "Summarize my unread emails and check HN for AI news"
+
+seclaw:
+  Inbox: 3 urgent, 7 action needed, 12 FYI.
+         Top urgent: contract review from legal (deadline tomorrow).
+
+  Hacker News: Top AI stories — Anthropic launches Claude 4.5,
+               Google open-sources Gemma 3, OpenAI restructures.
+
+  — Inbox Management, Research & Intelligence
+```
+
+Every response ends with an attribution footer showing which agent(s) answered.
+
+### How it works
+
+1. **Install agents** — `npx seclaw add inbox-agent --key TOKEN`. Each template stacks onto your base agent.
+2. **Auto-route** — The LLM picks the right capability for each message. Email questions go to Inbox. Lead questions go to Sales.
+3. **Attribution** — Every response shows which agent answered. You always know who did what.
+
+### Focus Mode
+
+Use `/switch` in Telegram to focus on a single agent. Auto mode is the default.
+
+```
+/switch              → Show installed agents + Auto mode
+/switch sales-agent  → Focus on Sales only
+/switch auto         → Back to all agents collaborating
+```
+
+### Smart Integration Detection
+
+When an agent needs an integration that isn't connected, it generates an OAuth link directly in chat. No manual setup needed.
+
+```
+seclaw: I need X (Twitter) connected to scan for leads.
+        Authorize X (Twitter): https://composio.dev/auth/...
+
+        Open the link, sign in, and grant access.
+        After completing authorization, your new tools load automatically.
+```
+
+The `connect_integration` tool handles this programmatically — the agent calls it when it detects a missing integration, gets the OAuth URL, and shares it with the user.
+
+---
+
+## Templates
+
+17 agent templates. Self-hosted. No subscriptions. Your data stays on your machine.
+
+| Template | Tier | What it does |
+|----------|------|-------------|
+| **Productivity Agent** | Free | Morning reports, task management, Telegram assistant |
+| **Data Analyst** | Free | CSV/JSON analysis, visualizations, automated reports |
+| **Inbox Agent** | Pro | Gmail categorization (urgent/action/FYI), Telegram digest |
+| **Reddit & HN Digest** | Pro | Daily curated digest from Reddit + Hacker News |
+| **YouTube Digest** | Pro | Morning summary of new videos from favorite channels |
+| **Health Tracker** | Pro | Food-symptom tracking, weekly correlation analysis |
+| **Earnings Tracker** | Pro | Tech/AI earnings reports with beat/miss analysis |
+| **Research Agent** | Pro | Multi-source competitor monitoring (X, HN, Reddit, RSS) |
+| **Knowledge Base** | Pro | Personal knowledge management from URLs, articles, tweets |
+| **Family Calendar** | Pro | Household coordination, calendar aggregation, grocery lists |
+| **Content Agent** | Premium | Trending topic research, draft in your voice, post with approval |
+| **Personal CRM** | Premium | Contact auto-discovery from email, meeting briefings, follow-ups |
+| **YouTube Creator** | Premium | Breaking news scouting, video idea pitches, full outlines |
+| **DevOps Agent** | Premium | Health checks every 15min, auto-restart, security audits |
+| **Customer Service** | Premium | Gmail inquiry monitoring, KB-backed replies, approval gates |
+| **Sales Agent** | Premium | Buying signal detection, lead scoring, outreach drafts |
+| **6-Agent Company** | Premium | 6 coordinated agents with standup, memory, self-correction |
+
+All templates work in **Auto Mode** — install multiple and they collaborate. No conflicts, no switching.
+
+### One Token, All Your Templates
+
+When you purchase a template, you get a single token that never expires. Every future purchase is added to the same token — no separate keys, no expiry, re-download anytime.
+
+```bash
+# Free templates — no token needed
+npx seclaw add productivity-agent
+
+# Paid templates — use your token
+npx seclaw add inbox-agent --key YOUR_TOKEN
+npx seclaw add research-agent --key YOUR_TOKEN   # same token
+npx seclaw capabilities                           # List installed
+```
+
+Browse and purchase at [seclawai.com/templates](https://seclawai.com/templates).
 
 ---
 
@@ -96,53 +192,9 @@ Every guardrail is enforced at the Docker runtime level — not in the system pr
 
 ---
 
-## Templates
-
-17 agent templates. Self-hosted. No subscriptions. Your data stays on your machine.
-
-| Template | Tier | What it does |
-|----------|------|-------------|
-| **Productivity Agent** | Free | Morning reports, task management, Telegram assistant |
-| **Data Analyst** | Free | CSV/JSON analysis, visualizations, automated reports |
-| **Inbox Agent** | Pro | Gmail categorization (urgent/action/FYI), Telegram digest |
-| **Reddit & HN Digest** | Pro | Daily curated digest from Reddit + Hacker News |
-| **YouTube Digest** | Pro | Morning summary of new videos from favorite channels |
-| **Health Tracker** | Pro | Food-symptom tracking, weekly correlation analysis |
-| **Earnings Tracker** | Pro | Tech/AI earnings reports with beat/miss analysis |
-| **Research Agent** | Pro | Multi-source competitor monitoring (X, HN, Reddit, RSS) |
-| **Knowledge Base** | Pro | Personal knowledge management from URLs, articles, tweets |
-| **Family Calendar** | Pro | Household coordination, calendar aggregation, grocery lists |
-| **Content Agent** | Premium | Trending topic research, draft in your voice, post with approval |
-| **Personal CRM** | Premium | Contact auto-discovery from email, meeting briefings, follow-ups |
-| **YouTube Creator** | Premium | Breaking news scouting, video idea pitches, full outlines |
-| **DevOps Agent** | Premium | Health checks every 15min, auto-restart, security audits |
-| **Customer Service** | Premium | Gmail inquiry monitoring, KB-backed replies, approval gates |
-| **Sales Agent** | Premium | Buying signal detection, lead scoring, outreach drafts |
-| **6-Agent Company** | Premium | 6 coordinated agents with standup, memory, self-correction |
-
-### One Token, All Your Templates
-
-When you purchase a template, you get a single token that never expires. Every future purchase is added to the same token — no separate keys, no expiry, re-download anytime.
-
-```bash
-# Free templates — no token needed
-npx seclaw add productivity-agent
-
-# Paid templates — use your token
-npx seclaw add inbox-agent --key YOUR_TOKEN
-npx seclaw add research-agent --key YOUR_TOKEN   # same token
-npx seclaw capabilities                           # List installed
-```
-
-Schedules from all capabilities merge automatically. The agent knows which capability handles which task.
-
-Browse and purchase at [seclawai.com/templates](https://seclawai.com/templates).
-
----
-
 ## Built-in Agent Tools
 
-15 tools built into every agent — no MCP dependency, no external services. All available via natural language in Telegram.
+16 tools built into every agent — no MCP dependency, no external services. All available via natural language in Telegram.
 
 ### Workspace
 
@@ -155,7 +207,7 @@ Every agent gets a structured workspace at `/workspace`:
 ├── notes/        Quick thoughts, ideas, meeting notes, links
 ├── reports/      Research results, summaries, daily digests
 ├── drafts/       Draft emails, messages, documents to review
-└── config/       Schedules and capability settings (system-managed)
+└── config/       Schedules, capabilities, integrations (system-managed)
 ```
 
 ### Workspace Tools
@@ -184,18 +236,28 @@ Every agent gets a structured workspace at `/workspace`:
 | `toggle_schedule` | Enable/disable a schedule without deleting it |
 | `trigger_schedule_now` | Run a scheduled task immediately |
 
+### Integration Tool
+
+| Tool | What it does |
+|------|-------------|
+| `connect_integration` | Generate OAuth link for a missing integration and share it in chat |
+
+When an agent needs Twitter, Reddit, YouTube, or any other service — it calls `connect_integration`, gets an OAuth URL, and sends it to the user. No manual `/integrations` needed.
+
 ---
 
 ## Integrations
 
 Powered by [Composio](https://composio.dev) — managed OAuth, zero raw token storage.
 
-Gmail, Google Calendar, Google Drive, Google Sheets, GitHub, Slack, Notion, Linear, Trello, Todoist, Dropbox, WhatsApp.
+Gmail, Google Calendar, Google Drive, Google Sheets, GitHub, Slack, Notion, Linear, Trello, Todoist, Dropbox, WhatsApp, X (Twitter), Reddit, YouTube, Tavily, Hacker News.
 
 ```bash
 npx seclaw integrations    # CLI: connect/disconnect
 /integrations              # Telegram: inline buttons
 ```
+
+Or let the agent handle it — when a template needs an integration, it calls `connect_integration` and sends you the OAuth link directly.
 
 ---
 
@@ -216,10 +278,11 @@ npx seclaw upgrade                   # Pull latest images & restart
 
 | Command | What it does |
 |---------|-------------|
+| `/switch` | Show installed agents, switch between Auto and Focus mode |
 | `/schedules` | View scheduled tasks, approve/reject pending |
 | `/integrations` | Connect/disconnect Composio services |
 | `/capabilities` | Show installed capabilities + schedule counts |
-| Any message | Agent responds with LLM + tools |
+| Any message | Agent responds using the right capability automatically |
 
 ---
 
@@ -248,7 +311,7 @@ npx seclaw            # local version, always up-to-date
 | `packages/web` | 8787 | Landing page (Hono + JSX + Tailwind) |
 | `packages/api` | 8788 | Token API (Hono + D1 + Stripe) |
 | `packages/cli` | — | CLI tool (`npx seclaw`) |
-| `packages/runtime` | — | Agent source (TypeScript → agent.js) |
+| `packages/runtime` | — | Agent source (TypeScript) |
 | `packages/templates` | — | Template source (free + paid) |
 
 ---

@@ -3,6 +3,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { AgentConfig } from "./config.js";
+import { composioFetch, INTEGRATIONS, getActiveConnections } from "./telegram.js";
 
 export interface ToolDefinition {
   name: string;
@@ -168,6 +169,7 @@ export async function initTools(config: AgentConfig): Promise<ToolContext> {
   const advancedTools = [
     createTriggerScheduleTool(config, ctx),
     createScheduleActionTool(config),
+    createConnectIntegrationTool(config, ctx),
   ];
   for (const t of advancedTools) {
     allTools.push(t.definition);
@@ -443,6 +445,7 @@ function createBuiltinTools(config: AgentConfig): BuiltinTool[] {
         if (!chatId) return "Error: no chat_id provided.";
 
         const confirmId = `confirm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        console.log(`[confirm] Created: ${confirmId} | action: ${onApprove.substring(0, 60)}`);
 
         pendingConfirmations.set(confirmId, {
           chatId,
@@ -981,6 +984,130 @@ function createScheduleActionTool(config: AgentConfig): BuiltinTool {
       }, delay * 1000);
 
       return `Action scheduled. Will execute "${action}" in ${delay} seconds and send the result to Telegram.`;
+    },
+  };
+}
+
+/**
+ * connect_integration: LLM-callable tool that generates Composio OAuth URLs.
+ * When the agent detects missing integrations, it calls this tool to get
+ * an authorization link and shares it directly with the user — no need
+ * for the user to type /integrations.
+ */
+function createConnectIntegrationTool(config: AgentConfig, ctx: ToolContext): BuiltinTool {
+  return {
+    definition: {
+      name: "connect_integration",
+      description:
+        "Connect a new integration (Twitter, Reddit, YouTube, Tavily, Gmail, etc.) via OAuth. " +
+        "Returns an authorization URL that the user must open to grant access. " +
+        "Call this when you need an integration that isn't connected yet. " +
+        "After the user completes authorization, their tools become available automatically.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          integration_key: {
+            type: "string",
+            description:
+              "Integration to connect. Available: " +
+              Object.entries(INTEGRATIONS)
+                .map(([k, v]) => `${k} (${v.hint})`)
+                .join(", "),
+          },
+        },
+        required: ["integration_key"],
+      },
+    },
+    execute: async (_name: string, args: Record<string, unknown>): Promise<string> => {
+      const key = args.integration_key as string;
+      const apiKey = config.composioApiKey;
+
+      if (!apiKey) {
+        return "Error: Composio API key is not configured. Set COMPOSIO_API_KEY in .env";
+      }
+
+      const integration = INTEGRATIONS[key];
+      if (!integration) {
+        const available = Object.keys(INTEGRATIONS).join(", ");
+        return `Unknown integration "${key}". Available: ${available}`;
+      }
+
+      try {
+        // Check if already connected
+        const activeConnections = await getActiveConnections(apiKey);
+        if (activeConnections.has(integration.app)) {
+          // Reload tools in case they're stale
+          await ctx.reloadComposio();
+          return `${integration.name} is already connected. Tools have been reloaded.`;
+        }
+
+        // Get or create auth config
+        const configRes = await composioFetch(apiKey, `/auth_configs?appName=${integration.app}`);
+        const matchingConfig = ((configRes.items || []) as Array<{ id: string; toolkit?: { slug?: string } }>).find(
+          (c) => c.toolkit?.slug === integration.app
+        );
+        let authConfigId: string;
+
+        if (matchingConfig) {
+          authConfigId = matchingConfig.id;
+        } else {
+          const created = await composioFetch(apiKey, "/auth_configs", {
+            method: "POST",
+            body: JSON.stringify({ toolkit: { slug: integration.app } }),
+          });
+          authConfigId = created.auth_config?.id ?? created.id;
+        }
+
+        // Create connection → get OAuth redirect URL
+        const entityId = config.composioUserId || "default";
+        const connection = await composioFetch(apiKey, "/connected_accounts", {
+          method: "POST",
+          body: JSON.stringify({
+            auth_config: { id: authConfigId },
+            connection: { entity_id: entityId },
+          }),
+        });
+
+        const redirectUrl = connection.redirect_url || connection.redirect_uri;
+
+        if (redirectUrl) {
+          console.log(`[connect_integration] ${integration.name} OAuth URL generated`);
+          return (
+            `Authorization link for ${integration.name}:\n${redirectUrl}\n\n` +
+            `The user needs to open this link, sign in, and grant access. ` +
+            `After completing authorization, send any message and the new tools will be loaded automatically.`
+          );
+        }
+
+        return `Could not generate authorization URL for ${integration.name}. The Composio API did not return a redirect URL.`;
+      } catch (err) {
+        const msg = (err as Error).message;
+        console.error(`[connect_integration] Error: ${msg}`);
+
+        // Handle integrations that don't support managed OAuth (e.g., Tavily uses API key)
+        if (msg.includes("DefaultAuthConfigNotFound") || msg.includes("auth config not found")) {
+          return (
+            `${integration.name} does not support one-click OAuth authorization. ` +
+            `It requires an API key to be configured manually. ` +
+            `The user should add their ${integration.name} API key in the .env file and restart the agent. ` +
+            `Do NOT attempt to use execute_command or any workaround.`
+          );
+        }
+
+        // Handle integrations that don't require auth (e.g., Hacker News public API)
+        if (msg.includes("NoAuthApp") || msg.includes("does not require authentication")) {
+          // Force a tool reload — the integration's tools should already be available
+          await ctx.reloadComposio();
+          return (
+            `${integration.name} does not require authentication — its tools should be available directly. ` +
+            `Tools have been reloaded. Try using the ${integration.name} tools now. ` +
+            `If no tools are available for ${integration.name}, tell the user this integration is not yet configured in Composio. ` +
+            `Do NOT use execute_command or curl as a workaround.`
+          );
+        }
+
+        return `Failed to connect ${integration.name}: ${msg}. Do NOT fall back to execute_command.`;
+      }
     },
   };
 }

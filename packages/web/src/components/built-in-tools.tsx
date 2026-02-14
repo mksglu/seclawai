@@ -56,6 +56,10 @@ const schedulingTools = [
     name: "trigger_schedule_now",
     description: "Manually run a scheduled task right now",
   },
+  {
+    name: "connect_integration",
+    description: "Generate OAuth link for a missing integration and share it in chat",
+  },
 ];
 
 export function BuiltInTools() {
@@ -66,10 +70,10 @@ export function BuiltInTools() {
           Built-in tools
         </p>
         <h2 className="mt-4 text-center text-3xl font-bold text-white sm:text-4xl">
-          15 tools, <span className="text-green-400">zero config</span>
+          16 tools, <span className="text-green-400">zero config</span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-neutral-400">
-          Every agent ships with workspace management, scheduling, and human-in-the-loop tools.
+          Every agent ships with workspace management, scheduling, human-in-the-loop, and smart integration detection.
           No MCP required. No external services. Just tell your agent what to do.
         </p>
 
@@ -85,7 +89,7 @@ export function BuiltInTools() {
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {workspaceDirs.map((dir) => (
-              <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
+              <div key={dir.name} className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{dir.icon}</span>
                   <code className="text-sm font-semibold text-green-400">{dir.name}</code>
@@ -159,7 +163,7 @@ export function BuiltInTools() {
               </thead>
               <tbody className="divide-y divide-neutral-800">
                 {schedulingTools.map((tool) => (
-                  <tr className="hover:bg-neutral-900/50">
+                  <tr key={tool.name} className="hover:bg-neutral-900/50">
                     <td className="px-6 py-3">
                       <code className="text-sm text-green-400">{tool.name}</code>
                     </td>

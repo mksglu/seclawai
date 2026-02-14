@@ -92,6 +92,7 @@ export function Architecture() {
         <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {stackItems.map((item) => (
             <div
+              key={item.name}
               className={
                 item.highlight
                   ? "rounded-xl border border-green-500/20 bg-green-500/5 p-6"

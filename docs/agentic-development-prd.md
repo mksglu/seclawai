@@ -238,16 +238,166 @@ This enables rapid iteration: edit → build → deploy → test → evaluate �
 - **6/6 PASS**
 - All templates either use `connect_integration` or respond gracefully
 
-## Future: HITL Testing
+## HITL (Human-in-the-Loop) Testing
 
-Templates with Human-in-the-Loop features (e.g., "approve before sending outreach") can be tested by:
+Templates with confirmation workflows use the `request_confirmation` builtin tool. The agent sends inline keyboard buttons (Approve/Reject) via Telegram, and waits for user response before proceeding.
 
-1. Sending a message that triggers HITL (e.g., "send outreach to this lead")
-2. Waiting for the inline keyboard (Approve/Reject buttons)
-3. Simulating a callback_query with `confirm_yes:{confirmId}`
-4. Verifying the approved action executes correctly
+### HITL Test Architecture
 
-This extends the webhook-based testing to cover confirmation workflows.
+```
+Dev Agent                    Production Agent           Telegram
+   |                              |                       |
+   |--- POST /webhook ---------->|                       |
+   |    "send email, but ask me" |                       |
+   |                              |--- request_confirmation -->|
+   |                              |    [Approve] [Reject]      |
+   |                              |                       |
+   |--- parse Docker logs ------->|                       |
+   |    extract confirmId         |                       |
+   |                              |                       |
+   |--- POST /webhook ---------->|                       |
+   |    callback_query:           |                       |
+   |    confirm_yes:{confirmId}   |                       |
+   |                              |--- onApprove action -->|
+   |                              |    (full agent run)    |
+```
+
+### Step 1: Trigger HITL
+
+Send a message that naturally triggers a confirmation flow:
+
+```bash
+TIMESTAMP=$(date +%s)
+CHAT_ID="457815778"
+
+# Message that should trigger HITL
+PAYLOAD='{
+  "update_id": '$TIMESTAMP',
+  "message": {
+    "message_id": '$TIMESTAMP',
+    "from": {"id": '$CHAT_ID', "is_bot": false, "first_name": "TestRunner"},
+    "chat": {"id": '$CHAT_ID', "type": "private"},
+    "date": '$TIMESTAMP',
+    "text": "5 saniye sonra bana HITL test basarili mesaji gonder ama once onay iste"
+  }
+}'
+
+docker exec seclaw-agent-1 wget -qO- \
+  --header="Content-Type: application/json" \
+  --post-data="$PAYLOAD" \
+  http://localhost:3000/webhook
+```
+
+### Step 2: Verify Confirmation Created
+
+Wait for the agent to process and check Docker logs:
+
+```bash
+sleep 12
+docker logs --tail 20 seclaw-agent-1 2>&1 | grep "\[confirm\]"
+# Output: [confirm] Created: confirm_1771083460007_mb8lms | action: send 'HITL test basarili!' ...
+```
+
+The `confirmId` is logged when `request_confirmation` executes.
+
+### Step 3: Simulate User Approval
+
+Send a callback_query simulating the "Approve" button press:
+
+```bash
+CONFIRM_ID="confirm_1771083460007_mb8lms"  # from Step 2 logs
+TIMESTAMP=$(date +%s)
+
+PAYLOAD='{
+  "update_id": '$TIMESTAMP',
+  "callback_query": {
+    "id": "approve_'$TIMESTAMP'",
+    "data": "confirm_yes:'$CONFIRM_ID'",
+    "message": {"message_id": '$TIMESTAMP', "chat": {"id": '$CHAT_ID', "type": "private"}},
+    "from": {"id": '$CHAT_ID', "is_bot": false, "first_name": "TestRunner"}
+  }
+}'
+
+docker exec seclaw-agent-1 wget -qO- \
+  --header="Content-Type: application/json" \
+  --post-data="$PAYLOAD" \
+  http://localhost:3000/webhook
+```
+
+### Step 4: Verify Approved Action Executes
+
+```bash
+sleep 35  # wait for delayed action
+docker logs --tail 15 seclaw-agent-1 2>&1
+# Expected:
+# [confirm] Approved: send 'HITL test basarili!' to the user after 5 seconds delay
+# [llm] Tool call: send_delayed_message args={...}
+# [delayed] Sent to 457815778 after 5s
+```
+
+### HITL Test Classification
+
+| Result | Criteria |
+|--------|----------|
+| **PASS - HITL** | `request_confirmation` called, approval triggers correct action |
+| **PASS - REJECT** | `request_confirmation` called, rejection prevents action |
+| **FAIL - NO CONFIRM** | Agent executed action without asking for confirmation |
+| **FAIL - WRONG ACTION** | Approved action doesn't match what was requested |
+
+### Actual Test Results
+
+**Approve flow:**
+```
+[llm] Tool call: request_confirmation args={"question":"...onaylıyor musunuz?","on_approve":"send 'HITL test basarili!' ..."}
+[confirm] Created: confirm_1771083460007_mb8lms | action: send 'HITL test basarili!' ...
+[confirm] Approved → full agent run
+[llm] Tool call: send_delayed_message args={"delay_seconds":30,"message":"HITL test basarili!"}
+[delayed] Sent to 457815778 after 30s
+```
+Result: **PASS** — confirmation created, approval triggered delayed message, message delivered.
+
+**Reject flow:**
+```
+[llm] Tool call: request_confirmation args={"question":"...onaylıyor musun?","on_approve":"send an email to you"}
+[confirm] Created: confirm_1771083832646_eli98g | action: send an email to you
+[telegram] Callback: confirm_no:confirm_1771083832646_eli98g
+```
+Result: **PASS** — rejection received, no action executed.
+
+## /switch Command Testing
+
+The `/switch` command lets users change between capabilities at runtime without restarting the agent.
+
+### Test Flow
+
+```bash
+# 1. Send /switch command
+PAYLOAD='{"update_id":..., "message":{"text":"/switch", ...}}'
+docker exec seclaw-agent-1 wget ... http://localhost:3000/webhook
+
+# 2. Verify inline keyboard sent (Auto + individual capabilities)
+docker logs --tail 10 seclaw-agent-1 2>&1 | grep "switch"
+
+# 3. Simulate button press
+PAYLOAD='{"update_id":..., "callback_query":{"data":"cap_switch:research-agent", ...}}'
+docker exec seclaw-agent-1 wget ... http://localhost:3000/webhook
+
+# 4. Verify mode changed
+docker logs --tail 5 seclaw-agent-1 2>&1
+# [config] Active mode set to: research-agent
+# [switch] Mode changed to: research-agent
+
+# 5. Send message and verify only research-agent responds
+# 6. Switch back to auto
+PAYLOAD='{"callback_query":{"data":"cap_switch:auto", ...}}'
+```
+
+### Switch Modes
+
+| Mode | Behavior |
+|------|----------|
+| **Auto** (default) | All installed capabilities active. LLM picks the right one per message. |
+| **Focus** (specific ID) | Only base + selected capability active. Reduces context, increases precision. |
 
 ## Key Design Principles
 
@@ -256,3 +406,5 @@ This extends the webhook-based testing to cover confirmation workflows.
 3. **Classify by tool usage, not content** — `execute_command` = hallucination, `connect_integration` = correct behavior
 4. **Hot-deploy for rapid iteration** — no Docker rebuild needed
 5. **Three-layer defense against hallucination** — prompt rules + structural tool + error-aware responses
+6. **HITL tests use callback_query simulation** — tests the full Approve/Reject flow without manual clicking
+7. **confirmId logging** — enables automated extraction and callback simulation
