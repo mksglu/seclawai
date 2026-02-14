@@ -76,7 +76,7 @@ const ORG_SCHEMA = {
 const SOFTWARE_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "seclaw",
+  name: "seclawai.com",
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Linux, macOS, Windows",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
@@ -95,7 +95,7 @@ app.get("/", (c) =>
 
 app.get("/templates", (c) =>
   c.html(renderPage(<Templates />, {
-    title: "AI Agent Templates — seclaw",
+    title: "AI Agent Templates — seclawai.com",
     description: "17 pre-built AI agent templates. Productivity, inbox management, research, sales, DevOps and more. One-time purchase, self-hosted, no subscriptions.",
     path: "/templates",
   })),
@@ -108,7 +108,7 @@ app.get("/templates/:id", (c) => {
   const content = TEMPLATE_CONTENT[id];
   return c.html(
     renderPage(<TemplateDetail template={template} content={content} />, {
-      title: `${template.name} — AI Agent Template | seclaw`,
+      title: `${template.name} — AI Agent Template | seclawai.com`,
       description: template.description,
       path: `/templates/${id}`,
       jsonLd: {
@@ -116,7 +116,7 @@ app.get("/templates/:id", (c) => {
         "@type": "Product",
         name: template.name,
         description: template.description,
-        brand: { "@type": "Brand", name: "seclaw" },
+        brand: { "@type": "Brand", name: "seclawai.com" },
         offers: {
           "@type": "Offer",
           price: template.priceCents ? (template.priceCents / 100).toFixed(2) : "0",
@@ -130,7 +130,7 @@ app.get("/templates/:id", (c) => {
 
 app.get("/docs", (c) =>
   c.html(renderPage(<Docs />, {
-    title: "Documentation — seclaw",
+    title: "Documentation — seclawai.com",
     description: "Quick start guide, architecture overview, CLI commands, Telegram commands, built-in tools, and Composio integrations for seclaw AI agents.",
     path: "/docs",
   })),
@@ -138,21 +138,21 @@ app.get("/docs", (c) =>
 
 app.get("/success", (c) =>
   c.html(renderPage(<Success />, {
-    title: "Purchase Complete — seclaw",
+    title: "Purchase Complete — seclawai.com",
     path: "/success",
   })),
 );
 
 app.get("/dashboard", (c) =>
   c.html(renderPage(<Dashboard />, {
-    title: "Dashboard — seclaw",
+    title: "Dashboard — seclawai.com",
     path: "/dashboard",
   })),
 );
 
 app.get("/terms", (c) =>
   c.html(renderPage(<Terms />, {
-    title: "Terms of Service — seclaw",
+    title: "Terms of Service — seclawai.com",
     description: "Terms of service for seclaw AI agent platform.",
     path: "/terms",
   })),
@@ -160,7 +160,7 @@ app.get("/terms", (c) =>
 
 app.get("/privacy", (c) =>
   c.html(renderPage(<Privacy />, {
-    title: "Privacy Policy — seclaw",
+    title: "Privacy Policy — seclawai.com",
     description: "Privacy policy for seclaw. Your data stays on your machine. We only collect what's needed for licensing.",
     path: "/privacy",
   })),
@@ -168,7 +168,7 @@ app.get("/privacy", (c) =>
 
 app.get("/legal", (c) =>
   c.html(renderPage(<Legal />, {
-    title: "Legal — seclaw",
+    title: "Legal — seclawai.com",
     description: "Legal information for seclaw by MKSF LTD, London UK.",
     path: "/legal",
   })),

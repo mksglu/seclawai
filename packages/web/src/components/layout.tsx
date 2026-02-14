@@ -48,7 +48,7 @@ function Nav() {
 
 function Layout({ children, title, description, path, jsonLd }: LayoutProps) {
   const SITE = "https://seclawai.com";
-  const pageTitle = title || "seclaw — Agentic AI on Your Machine";
+  const pageTitle = title || "seclawai.com — Agentic AI on Your Machine";
   const pageDesc = description || "Deploy secure, autonomous AI agents on your machine in 60 seconds. Multiple agents, one Telegram bot. Docker-isolated, self-hosted.";
   const canonicalUrl = `${SITE}${path || "/"}`;
 
