@@ -24,14 +24,37 @@ app.all("/api/*", async (c) => {
 
   const headers = new Headers(c.req.raw.headers);
   headers.set("X-Forwarded-Host", url.host);
+  headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));
 
   try {
     const res = await fetch(target, {
       method: c.req.method,
       headers,
       body: c.req.method !== "GET" && c.req.method !== "HEAD" ? c.req.raw.body : undefined,
+      redirect: "manual",
     });
 
+    // For redirects, rewrite Location to point to the proxy origin
+    if (res.status >= 300 && res.status < 400) {
+      const resHeaders = new Headers(res.headers);
+      const location = resHeaders.get("Location");
+      if (location) {
+        try {
+          const locUrl = new URL(location, target);
+          if (locUrl.origin === apiBase) {
+            locUrl.host = url.host;
+            locUrl.protocol = url.protocol;
+            resHeaders.set("Location", locUrl.toString());
+          }
+        } catch { /* keep original */ }
+      }
+      return new Response(res.body, {
+        status: res.status,
+        headers: resHeaders,
+      });
+    }
+
+    // Non-redirect: pass through headers as-is (preserves Set-Cookie correctly)
     return new Response(res.body, {
       status: res.status,
       headers: res.headers,

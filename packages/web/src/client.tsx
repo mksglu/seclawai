@@ -9,9 +9,8 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
 
-// Dev: direct to API worker (bypasses Wrangler Worker runtime fetch limitation)
-// Prod: same-origin proxy handles /api/* forwarding
-const API = window.location.hostname === "localhost" ? "http://localhost:8788" : "";
+// Always same-origin — proxy on 8787 forwards /api/* to API worker
+const API = "";
 
 // --- Google SVG Icon ---
 
@@ -339,9 +338,9 @@ function DashboardContent() {
     navigator.clipboard.writeText(text);
   };
 
-  const handleSignOut = () => {
-    fetch("/api/auth/sign-out", { method: "POST", credentials: "include" })
-      .then(() => { window.location.href = "/"; });
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    window.location.href = "/";
   };
 
   const handleRegenerate = () => {
