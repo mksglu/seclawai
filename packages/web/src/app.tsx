@@ -64,9 +64,43 @@ app.all("/api/*", async (c) => {
   }
 });
 
+// JSON-LD schemas
+const ORG_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "seclawai.com",
+  url: "https://seclawai.com",
+  sameAs: ["https://github.com/mksglu/seclawai"],
+};
+
+const SOFTWARE_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "seclaw",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Linux, macOS, Windows",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  description: "Deploy secure, autonomous AI agents on your machine in 60 seconds. Docker-isolated, self-hosted.",
+};
+
 // Pages
-app.get("/", (c) => c.html(renderPage(<Home />)));
-app.get("/templates", (c) => c.html(renderPage(<Templates />)));
+app.get("/", (c) =>
+  c.html(renderPage(<Home />, {
+    title: "seclaw — Secure AI Agents on Your Machine",
+    description: "Deploy autonomous AI agents in 60 seconds. 17 templates, Auto Mode, Docker isolation. Self-hosted, no subscriptions. One Telegram bot, multiple agents.",
+    path: "/",
+    jsonLd: { ...ORG_SCHEMA, ...SOFTWARE_SCHEMA, "@type": ["Organization", "SoftwareApplication"] },
+  })),
+);
+
+app.get("/templates", (c) =>
+  c.html(renderPage(<Templates />, {
+    title: "AI Agent Templates — seclaw",
+    description: "17 pre-built AI agent templates. Productivity, inbox management, research, sales, DevOps and more. One-time purchase, self-hosted, no subscriptions.",
+    path: "/templates",
+  })),
+);
+
 app.get("/templates/:id", (c) => {
   const id = c.req.param("id");
   const template = TEMPLATES.find((t) => t.id === id);
@@ -74,17 +108,71 @@ app.get("/templates/:id", (c) => {
   const content = TEMPLATE_CONTENT[id];
   return c.html(
     renderPage(<TemplateDetail template={template} content={content} />, {
-      title: `${template.name} — seclaw`,
+      title: `${template.name} — AI Agent Template | seclaw`,
       description: template.description,
+      path: `/templates/${id}`,
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: template.name,
+        description: template.description,
+        brand: { "@type": "Brand", name: "seclaw" },
+        offers: {
+          "@type": "Offer",
+          price: template.priceCents ? (template.priceCents / 100).toFixed(2) : "0",
+          priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
+        },
+      },
     }),
   );
 });
-app.get("/docs", (c) => c.html(renderPage(<Docs />)));
-app.get("/success", (c) => c.html(renderPage(<Success />)));
-app.get("/dashboard", (c) => c.html(renderPage(<Dashboard />, { title: "Dashboard — seclaw" })));
-app.get("/terms", (c) => c.html(renderPage(<Terms />, { title: "Terms — seclaw" })));
-app.get("/privacy", (c) => c.html(renderPage(<Privacy />, { title: "Privacy — seclaw" })));
-app.get("/legal", (c) => c.html(renderPage(<Legal />, { title: "Legal — seclaw" })));
+
+app.get("/docs", (c) =>
+  c.html(renderPage(<Docs />, {
+    title: "Documentation — seclaw",
+    description: "Quick start guide, architecture overview, CLI commands, Telegram commands, built-in tools, and Composio integrations for seclaw AI agents.",
+    path: "/docs",
+  })),
+);
+
+app.get("/success", (c) =>
+  c.html(renderPage(<Success />, {
+    title: "Purchase Complete — seclaw",
+    path: "/success",
+  })),
+);
+
+app.get("/dashboard", (c) =>
+  c.html(renderPage(<Dashboard />, {
+    title: "Dashboard — seclaw",
+    path: "/dashboard",
+  })),
+);
+
+app.get("/terms", (c) =>
+  c.html(renderPage(<Terms />, {
+    title: "Terms of Service — seclaw",
+    description: "Terms of service for seclaw AI agent platform.",
+    path: "/terms",
+  })),
+);
+
+app.get("/privacy", (c) =>
+  c.html(renderPage(<Privacy />, {
+    title: "Privacy Policy — seclaw",
+    description: "Privacy policy for seclaw. Your data stays on your machine. We only collect what's needed for licensing.",
+    path: "/privacy",
+  })),
+);
+
+app.get("/legal", (c) =>
+  c.html(renderPage(<Legal />, {
+    title: "Legal — seclaw",
+    description: "Legal information for seclaw by MKSF LTD, London UK.",
+    path: "/legal",
+  })),
+);
 
 // 404
 app.notFound((c) =>

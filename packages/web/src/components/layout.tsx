@@ -5,6 +5,8 @@ interface LayoutProps {
   children: ReactNode;
   title?: string;
   description?: string;
+  path?: string;
+  jsonLd?: Record<string, unknown>;
 }
 
 /* Critical inline CSS — only html/body to prevent FOUC */
@@ -44,25 +46,47 @@ function Nav() {
   );
 }
 
-function Layout({ children, title, description }: LayoutProps) {
+function Layout({ children, title, description, path, jsonLd }: LayoutProps) {
+  const SITE = "https://seclawai.com";
+  const pageTitle = title || "seclaw — Agentic AI on Your Machine";
+  const pageDesc = description || "Deploy secure, autonomous AI agents on your machine in 60 seconds. Multiple agents, one Telegram bot. Docker-isolated, self-hosted.";
+  const canonicalUrl = `${SITE}${path || "/"}`;
+
   return (
     <html lang="en" className="bg-neutral-950 text-white antialiased">
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style dangerouslySetInnerHTML={{ __html: CRITICAL_CSS }} />
-        <title>{title || "seclaw — Agentic AI on Your Machine"}</title>
-        <meta
-          name="description"
-          content={description || "RIP OpenClaw. Deploy secure, autonomous AI agents on your machine in 60 seconds. Multiple agents, one Telegram bot. Docker-isolated, self-hosted, agentic by design."}
-        />
-        <meta property="og:title" content={title || "seclaw — Agentic AI on Your Machine"} />
-        <meta
-          property="og:description"
-          content={description || "RIP OpenClaw. Secure autonomous AI agents with Docker isolation and hard guardrails. 17 templates, Auto Mode, 60-second setup."}
-        />
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta name="robots" content="index, follow" />
+
+        {/* Open Graph */}
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:site_name" content="seclawai.com" />
+{/*        <meta property="og:image" content={`${SITE}/static/og.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" /> */}
+
+        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDesc} />
+{/*        <meta name="twitter:image" content={`${SITE}/static/og.png`} /> */}
+
+        {/* JSON-LD */}
+        {jsonLd && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        )}
+
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="preload" href="/static/output.css" as="style" />
@@ -87,10 +111,10 @@ function Layout({ children, title, description }: LayoutProps) {
 
 export function renderPage(
   content: React.ReactElement,
-  props?: { title?: string; description?: string },
+  props?: { title?: string; description?: string; path?: string; jsonLd?: Record<string, unknown> },
 ): string {
   const html = renderToString(
-    <Layout title={props?.title} description={props?.description}>
+    <Layout title={props?.title} description={props?.description} path={props?.path} jsonLd={props?.jsonLd}>
       {content}
     </Layout>,
   );
