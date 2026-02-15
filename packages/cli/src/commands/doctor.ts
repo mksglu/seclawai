@@ -49,6 +49,23 @@ export async function doctor() {
     return;
   }
 
+  // 2b. Check required project files
+  const missingFiles: string[] = [];
+  for (const f of ["docker-compose.yml", "tunnel-start.sh", ".env"]) {
+    if (!existsSync(resolve(projectDir, f))) missingFiles.push(f);
+  }
+  if (missingFiles.length > 0) {
+    const filesCheck: CheckResult = {
+      name: "Project files",
+      ok: false,
+      message: `Missing: ${missingFiles.join(", ")} — run ${pc.cyan("npx seclaw create")} to regenerate`,
+    };
+    results.push(filesCheck);
+    s.stop(formatCheck(filesCheck));
+    showSummary(results);
+    return;
+  }
+
   const env = { ...process.env };
 
   // 3. Containers running

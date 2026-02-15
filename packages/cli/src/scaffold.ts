@@ -240,7 +240,12 @@ cloudflared tunnel --no-autoupdate --url http://agent:3000 2>&1 | while IFS= rea
   esac
 done
 `;
-  await writeFile(join(dir, "tunnel-start.sh"), script, { mode: 0o755 });
+  const tunnelPath = join(dir, "tunnel-start.sh");
+  // Docker creates a directory when mount source is missing — remove it
+  if (existsSync(tunnelPath)) {
+    await rm(tunnelPath, { recursive: true });
+  }
+  await writeFile(tunnelPath, script, { mode: 0o755 });
 }
 
 /**
