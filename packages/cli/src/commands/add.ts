@@ -175,7 +175,6 @@ export async function add(
     p.log.success(
       `Capability '${pc.bold(templateName)}' installed. ${pc.cyan(String(installed.capabilities.length))} capabilities active.`
     );
-    p.log.info(`Run ${pc.cyan("docker compose restart agent")} to apply.`);
   }
 
   p.outro(`${pc.green("Done!")} Template ${pc.bold(template)} is ready.`);
