@@ -909,7 +909,7 @@ async function handleTemplates(chatId: number, config: AgentConfig): Promise<voi
   let text = `*Installed Templates (${capabilities.length})*\n\n${lines.join("\n")}\n\nMode: *${modeLabel}*`;
 
   if (notInstalled.length > 0) {
-    text += `\n\n*Browse More (${notInstalled.length})*\n_Tap to view details:_`;
+    text += `\n\n${notInstalled.length} more available:`;
   }
 
   const keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>> = [];
@@ -930,10 +930,10 @@ async function handleTemplates(chatId: number, config: AgentConfig): Promise<voi
     }
   }
 
-  // Browse catalog buttons for not-installed templates — 1 per row
+  // Not-installed templates — 1 per row with details link
   for (const t of notInstalled) {
     keyboard.push([{
-      text: `${t.name} — ${t.price}`,
+      text: `${t.name} — Details`,
       url: `https://seclawai.com/templates/${t.id}`,
     }]);
   }
@@ -975,7 +975,7 @@ export async function sendMessageWithButtons(
 ): Promise<void> {
   if (!token || !chatId) return;
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -985,8 +985,25 @@ export async function sendMessageWithButtons(
         reply_markup: { inline_keyboard: keyboard },
       }),
     });
-  } catch {
-    // Fallback without markdown
+    const data = await res.json() as { ok: boolean; description?: string };
+    if (!data.ok) {
+      console.log(`[telegram] Markdown failed (buttons): ${data.description} — retrying plain`);
+      const retryRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          reply_markup: { inline_keyboard: keyboard },
+        }),
+      });
+      const retryData = await retryRes.json() as { ok: boolean; description?: string };
+      if (!retryData.ok) {
+        console.error(`[telegram] Plain also failed (buttons): ${retryData.description}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[telegram] sendMessageWithButtons error:`, (err as Error).message);
     try {
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",

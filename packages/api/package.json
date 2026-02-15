@@ -11,7 +11,8 @@
     "db:migrate": "wrangler d1 execute seclaw --file=src/db/schema.sql",
     "db:migrate:local": "wrangler d1 execute seclaw --local --file=src/db/schema.sql",
     "db:seed": "wrangler d1 execute seclaw --file=src/db/seed.sql",
-    "db:seed:local": "wrangler d1 execute seclaw --local --file=src/db/seed.sql"
+    "db:seed:local": "wrangler d1 execute seclaw --local --file=src/db/seed.sql",
+    "db:seed:dev": "wrangler d1 execute seclaw --local --file=src/db/seed-dev.sql"
   },
   "dependencies": {
     "better-auth": "^1.4.18",
