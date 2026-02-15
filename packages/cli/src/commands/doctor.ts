@@ -179,14 +179,15 @@ async function checkContainers(
       }
 
       if (status !== "running") {
+        const canFix = svc !== "cloudflared" || existsSync(resolve(projectDir, "tunnel-start.sh"));
         results.push({
           name: `Container: ${svc}`,
           ok: false,
-          message: `Status: ${status}`,
-          fix: async () => {
+          message: canFix ? `Status: ${status}` : `Status: ${status} — run ${pc.cyan("npx seclaw create")} to regenerate missing files`,
+          fix: canFix ? async () => {
             await execa("docker", ["compose", "up", "-d", svc], { cwd: projectDir, env });
             return "Started";
-          },
+          } : undefined,
         });
       } else if (health && health !== "healthy" && health !== "") {
         results.push({
@@ -249,7 +250,20 @@ async function checkAgentHealth(
   }
 }
 
+function checkTunnelScript(projectDir: string): CheckResult | null {
+  if (!existsSync(resolve(projectDir, "tunnel-start.sh"))) {
+    return {
+      name: "Tunnel",
+      ok: false,
+      message: `tunnel-start.sh missing — run ${pc.cyan("npx seclaw create")} to regenerate`,
+    };
+  }
+  return null;
+}
+
 async function checkTunnel(projectDir: string): Promise<CheckResult & { tunnelUrl?: string }> {
+  const scriptCheck = checkTunnelScript(projectDir);
+  if (scriptCheck) return scriptCheck;
   try {
     const result = await execa(
       "docker",
