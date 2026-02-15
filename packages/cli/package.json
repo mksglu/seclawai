@@ -1,6 +1,6 @@
 {
   "name": "seclaw",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Secure autonomous AI agents in 60 seconds",
   "type": "module",
   "bin": {
