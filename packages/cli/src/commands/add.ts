@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { writeFile, mkdir, readFile, cp } from "node:fs/promises";
-import { execSync } from "node:child_process";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { findProjectDir } from "../docker.js";
 
 const API_URL = process.env.SECLAW_API || "https://seclawai.com";
 
@@ -28,14 +28,16 @@ export async function add(
   const isFree = FREE_TEMPLATES.includes(template);
   const s = p.spinner();
 
+  // Find project root — uses Docker labels, then cwd, then well-known paths
+  const projectDir = findProjectDir() || process.cwd();
+
   // Resolve template target directory:
-  // - Free templates: read from bundled dist/templates/free/
-  // - Paid templates: write to packages/templates/paid/ (monorepo source)
-  //   Falls back to cwd/templates/ if not in monorepo
+  // - Monorepo dev: packages/templates/paid/
+  // - Global install: <projectDir>/templates/
   const monorepoTemplatesDir = resolve(import.meta.dirname, "..", "..", "templates", "paid");
   const templateDir = !isFree && existsSync(resolve(import.meta.dirname, "..", "..", "templates"))
     ? resolve(monorepoTemplatesDir, template)
-    : resolve(process.cwd(), "templates", template);
+    : resolve(projectDir, "templates", template);
 
   if (isFree) {
     // Free template — bundled locally with the CLI
@@ -113,19 +115,6 @@ export async function add(
       }
 
       s.stop(`${Object.keys(data.files).length} files written to ${pc.dim(templateDir)}`);
-
-      // Auto-rebuild CLI so the paid template is available in dist/
-      const cliDir = resolve(import.meta.dirname, "..");
-      const cliPkgPath = resolve(cliDir, "package.json");
-      if (existsSync(cliPkgPath)) {
-        s.start("Rebuilding CLI...");
-        try {
-          execSync("pnpm build", { cwd: cliDir, stdio: "pipe" });
-          s.stop("CLI rebuilt with new template.");
-        } catch {
-          s.stop("CLI rebuild failed — run `pnpm build` manually.");
-        }
-      }
     } catch (err) {
       s.stop("Failed.");
       p.log.error(`Network error: ${err}`);
@@ -138,11 +127,11 @@ export async function add(
   // Read workspace path from .env or default to ./shared
   let wsHostPath = "shared";
   try {
-    const envContent = await readFile(resolve(process.cwd(), ".env"), "utf-8");
+    const envContent = await readFile(resolve(projectDir, ".env"), "utf-8");
     const wsMatch = envContent.match(/WORKSPACE_HOST_PATH=(.+)/);
     if (wsMatch?.[1]?.trim()) wsHostPath = wsMatch[1].trim();
   } catch { /* */ }
-  const configDir = resolve(process.cwd(), wsHostPath, "config");
+  const configDir = resolve(projectDir, wsHostPath, "config");
 
   if (existsSync(configDir)) {
     const capDir = resolve(configDir, "capabilities", template);
