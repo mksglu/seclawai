@@ -3,11 +3,13 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { SetupAnswers } from "./prompts.js";
 import { getProviderConfig } from "./prompts.js";
+import { saveProjectDir } from "./docker.js";
 
 export async function scaffoldProject(
   targetDir: string,
   answers: SetupAnswers
 ) {
+  saveProjectDir(resolve(targetDir));
   const ws = answers.workspacePath || "./shared";
   const wsSubdirs = ["tasks", "reports", "notes", "drafts", "memory", "config"];
 

@@ -1,5 +1,5 @@
 import { execa, execaSync } from "execa";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -116,12 +116,51 @@ async function findContainerByLabel(project: string): Promise<{ dir: string | nu
   }
 }
 
+const SECLAW_CONFIG_DIR = resolve(process.env.HOME || "~", ".seclaw");
+const PROJECT_PATH_FILE = resolve(SECLAW_CONFIG_DIR, "project-path");
+
+/**
+ * Save the project directory so it can be found from anywhere.
+ */
+export function saveProjectDir(dir: string): void {
+  try {
+    mkdirSync(SECLAW_CONFIG_DIR, { recursive: true });
+    writeFileSync(PROJECT_PATH_FILE, dir);
+  } catch { /* best-effort */ }
+}
+
+function isValidProjectDir(dir: string): boolean {
+  // Check for docker-compose.yml with agent service
+  const composePath = resolve(dir, "docker-compose.yml");
+  if (existsSync(composePath)) {
+    try {
+      const content = readFileSync(composePath, "utf-8");
+      if (content.includes("agent") && content.includes("agent-net")) return true;
+    } catch { /* fall through */ }
+  }
+  // Fallback: .env with TELEGRAM_BOT_TOKEN is enough
+  const envPath = resolve(dir, ".env");
+  if (existsSync(envPath)) {
+    try {
+      const env = readFileSync(envPath, "utf-8");
+      if (env.includes("TELEGRAM_BOT_TOKEN")) return true;
+    } catch { /* */ }
+  }
+  return false;
+}
+
 /**
  * Find the seclaw project directory by looking for docker-compose.yml
- * with agent service. Checks running containers first, then common paths.
+ * with agent service. Checks saved path, running containers, then common paths.
  */
 export function findProjectDir(): string | null {
-  // 1. Check running containers for the working dir (any compose project with agent service)
+  // 1. Saved project path (~/.seclaw/project-path)
+  try {
+    const saved = readFileSync(PROJECT_PATH_FILE, "utf-8").trim();
+    if (saved && isValidProjectDir(saved)) return saved;
+  } catch { /* not saved yet */ }
+
+  // 2. Check running containers for the working dir
   try {
     const result = execaSync("docker", [
       "ps",
@@ -136,32 +175,28 @@ export function findProjectDir(): string | null {
           "--format", "{{index .Config.Labels \"com.docker.compose.project.working_dir\"}}",
         ]);
         const dir = inspect.stdout.trim();
-        if (dir && existsSync(resolve(dir, "docker-compose.yml"))) {
+        if (dir && isValidProjectDir(dir)) {
+          saveProjectDir(dir);
           return dir;
         }
       } catch { /* skip */ }
     }
   } catch { /* no containers */ }
 
-  // 2. Static candidates
+  // 3. Static candidates
+  const home = process.env.HOME || "~";
   const candidates = [
     process.cwd(),
     resolve(process.cwd(), ".."),
-    resolve(process.env.HOME || "~", "seclaw"),
-    resolve(process.env.HOME || "~", "my-agent"),
+    home,
+    resolve(home, "seclaw"),
+    resolve(home, "my-agent"),
   ];
 
   for (const dir of candidates) {
-    const composePath = resolve(dir, "docker-compose.yml");
-    if (existsSync(composePath)) {
-      try {
-        const content = readFileSync(composePath, "utf-8");
-        if (content.includes("agent") && content.includes("agent-net")) {
-          return dir;
-        }
-      } catch {
-        continue;
-      }
+    if (isValidProjectDir(dir)) {
+      saveProjectDir(dir);
+      return dir;
     }
   }
 
