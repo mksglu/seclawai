@@ -107,14 +107,11 @@ export async function add(
       s.stop(`Template ready: ${pc.green(data.templateName)}`);
 
       // Write all template files
-      s.start("Writing template files...");
       await mkdir(templateDir, { recursive: true });
 
       for (const [filename, content] of Object.entries(data.files)) {
         await writeFile(resolve(templateDir, filename), content);
       }
-
-      s.stop(`${Object.keys(data.files).length} files written to ${pc.dim(templateDir)}`);
     } catch (err) {
       s.stop("Failed.");
       p.log.error(`Network error: ${err}`);
@@ -176,9 +173,9 @@ export async function add(
     } catch { /* use id */ }
 
     p.log.success(
-      `Capability '${pc.bold(templateName)}' added. ${pc.cyan(String(installed.capabilities.length))} capabilities active.`
+      `Capability '${pc.bold(templateName)}' installed. ${pc.cyan(String(installed.capabilities.length))} capabilities active.`
     );
-    p.log.info("Restart agent to apply changes.");
+    p.log.info(`Run ${pc.cyan("docker compose restart agent")} to apply.`);
   }
 
   p.outro(`${pc.green("Done!")} Template ${pc.bold(template)} is ready.`);
