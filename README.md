@@ -149,23 +149,9 @@ Browse and purchase at [seclawai.com/templates](https://seclawai.com/templates).
 
 4 Docker containers, zero inbound ports, full isolation:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  YOUR MACHINE                                           │
-│                                                         │
-│  ┌──────────── agent-net (bridge) ───────────────────┐  │
-│  │                                                    │  │
-│  │  agent ────> inngest      desktop-commander        │  │
-│  │  :3000      :8288         (MCP, sandboxed)         │  │
-│  │    │                                               │  │
-│  │    └──> cloudflared ──── outbound-only ──> Telegram │  │
-│  │                                                    │  │
-│  └────────────────────────────────────────────────────┘  │
-│                                                         │
-│  Volumes: ./shared:/workspace    Inbound: NONE          │
-│  Dashboard: localhost:8288       Tunnel: CF outbound     │
-└─────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/architecture.png" alt="seclaw Architecture" width="100%" />
+</p>
 
 | Container | Role |
 |-----------|------|

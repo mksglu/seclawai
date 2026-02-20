@@ -47,6 +47,7 @@ docs/
 !docs/agentic-development-prd.md
 !docs/template-test-results.md
 !docs/template-switching-prd.md
+!docs/architecture.png
 
 # CLI runtime (copied into dist during build)
 packages/cli/runtime/
